@@ -16,7 +16,7 @@
 
 ## 📋 Communication Protocol Specification
 
-All commands are transmitted over Bluetooth Serial at **9600 baud** as single ASCII bytes:
+All commands are transmitted over Bluetooth Serial at **115200 baud** (standard Makeblock hardware UART rate) as single ASCII bytes:
 
 | Byte | Action | Target in Motor Control |
 |:---:|---|---|
@@ -28,6 +28,7 @@ All commands are transmitted over Bluetooth Serial at **9600 baud** as single AS
 | `'e'` | Smooth curve right | `curveRight()` |
 | `'x'` | 180° turn around | `rotate180()` |
 | `'c'` | Goal celebration wiggle | `celebrate()` |
+| `'k'` | Kick/Shoot (Buzzer + Yellow) | (Handled in loop) |
 | `' '` | Stop immediately | `stopRobot()` |
 | `'+'` | Increase speed cap | `currentSpeedCap += 20` |
 | `'-'` | Decrease speed cap | `currentSpeedCap -= 20` |
@@ -37,10 +38,15 @@ All commands are transmitted over Bluetooth Serial at **9600 baud** as single AS
 ## 🚀 Quick Start & Testing
 
 ### 1. Requirements
-Install `pyserial`:
+Install required Python libraries:
 ```powershell
-pip install pyserial
+pip install pyserial keyboard
 ```
+
+> [!WARNING]  
+> **Hardware Conflict:** The mCore board shares its serial pins (0 and 1) between the USB port and the Bluetooth module.
+> - When uploading code via USB, you **must unplug** the Bluetooth module.
+> - When driving via Bluetooth, you **must unplug** the USB cable from the PC.
 
 ### 2. Pair mBot with Windows PC
 1. Turn on the mBot battery switch.
@@ -51,7 +57,9 @@ pip install pyserial
 ```powershell
 python communication/comm_test_tool.py
 ```
-This tool scans your ports, connects to the mBot, and lets you drive it from your keyboard to verify the Bluetooth link.
+*(Note: Because this tool uses real-time keyboard tracking to implement "hold-to-move, release-to-stop", you may need to run your terminal as Administrator on Windows).*
+
+This tool scans your ports, connects to the mBot, and lets you drive it seamlessly from your keyboard to verify the Bluetooth link and Arduino failsafes.
 
 ---
 

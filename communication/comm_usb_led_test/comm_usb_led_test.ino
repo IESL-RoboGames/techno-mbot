@@ -11,8 +11,8 @@ unsigned long lastCommandTime = 0;
 const unsigned long COMM_TIMEOUT_MS = 1500;
 
 void setup() {
-  Serial.begin(9600);
-  
+  Serial.begin(115200); // 115200 baud required by Makeblock Bluetooth Module
+
   // Initialize RGB LEDs
   rgbLeds.setpin(13); // mCore onboard RGB pin
   setLeds(0, 0, 0);   // All off
@@ -25,7 +25,8 @@ void setup() {
 
   Serial.println("======================================");
   Serial.println("mBot Communication USB/LED Test Ready!");
-  Serial.println("Commands: w=Green, s=Red, a=Left Blue, d=Right Blue, space=Off, c=Rainbow");
+  Serial.println("Commands: w=Green, s=Red, a=Left Blue, d=Right Blue, "
+                 "space=Off, c=Rainbow");
   Serial.println("======================================");
 
   lastCommandTime = millis();
@@ -39,94 +40,97 @@ void setLeds(uint8_t red, uint8_t green, uint8_t blue) {
 
 void handleCommand(char c) {
   lastCommandTime = millis();
-  
+
   switch (c) {
-    case 'w':
-      // Forward: Both LEDs Bright GREEN
-      setLeds(0, 150, 0);
-      Serial.println("[mBot] 'w' -> FORWARD (Green LEDs)");
-      break;
+  case 'w':
+    // Forward: Both LEDs Bright GREEN
+    setLeds(0, 150, 0);
+    Serial.println("[mBot] 'w' -> FORWARD (Green LEDs)");
+    break;
 
-    case 's':
-      // Backward: Both LEDs Bright RED
+  case 's':
+    // Backward: Both LEDs Bright RED
+    setLeds(150, 0, 0);
+    Serial.println("[mBot] 's' -> BACKWARD (Red LEDs)");
+    break;
+
+  case 'a':
+    // Turn Left: Left LED BLUE, Right OFF
+    rgbLeds.setColor(1, 0, 0, 150);
+    rgbLeds.setColor(2, 0, 0, 0);
+    rgbLeds.show();
+    Serial.println("[mBot] 'a' -> TURN LEFT (Left Blue LED)");
+    break;
+
+  case 'd':
+    // Turn Right: Right LED BLUE, Left OFF
+    rgbLeds.setColor(1, 0, 0, 0);
+    rgbLeds.setColor(2, 0, 0, 150);
+    rgbLeds.show();
+    Serial.println("[mBot] 'd' -> TURN RIGHT (Right Blue LED)");
+    break;
+
+  case 'q':
+    // Curve Left: Cyan on left
+    rgbLeds.setColor(1, 0, 150, 150);
+    rgbLeds.setColor(2, 0, 50, 50);
+    rgbLeds.show();
+    Serial.println("[mBot] 'q' -> CURVE LEFT");
+    break;
+
+  case 'e':
+    // Curve Right: Cyan on right
+    rgbLeds.setColor(1, 0, 50, 50);
+    rgbLeds.setColor(2, 0, 150, 150);
+    rgbLeds.show();
+    Serial.println("[mBot] 'e' -> CURVE RIGHT");
+    break;
+
+  case 'k':
+    // Kick / Shoot: Yellow + beep
+    setLeds(150, 150, 0);
+    buzzer.tone(1500, 200);
+    delay(200);
+    buzzer.noTone();
+    Serial.println("[mBot] 'k' -> KICK! (Buzzer Beep + Yellow)");
+    break;
+
+  case 'c':
+    // Celebrate: Rainbow flash
+    Serial.println("[mBot] 'c' -> CELEBRATE!");
+    for (int i = 0; i < 3; i++) {
       setLeds(150, 0, 0);
-      Serial.println("[mBot] 's' -> BACKWARD (Red LEDs)");
-      break;
-
-    case 'a':
-      // Turn Left: Left LED BLUE, Right OFF
-      rgbLeds.setColor(1, 0, 0, 150);
-      rgbLeds.setColor(2, 0, 0, 0);
-      rgbLeds.show();
-      Serial.println("[mBot] 'a' -> TURN LEFT (Left Blue LED)");
-      break;
-
-    case 'd':
-      // Turn Right: Right LED BLUE, Left OFF
-      rgbLeds.setColor(1, 0, 0, 0);
-      rgbLeds.setColor(2, 0, 0, 150);
-      rgbLeds.show();
-      Serial.println("[mBot] 'd' -> TURN RIGHT (Right Blue LED)");
-      break;
-
-    case 'q':
-      // Curve Left: Cyan on left
-      rgbLeds.setColor(1, 0, 150, 150);
-      rgbLeds.setColor(2, 0, 50, 50);
-      rgbLeds.show();
-      Serial.println("[mBot] 'q' -> CURVE LEFT");
-      break;
-
-    case 'e':
-      // Curve Right: Cyan on right
-      rgbLeds.setColor(1, 0, 50, 50);
-      rgbLeds.setColor(2, 0, 150, 150);
-      rgbLeds.show();
-      Serial.println("[mBot] 'e' -> CURVE RIGHT");
-      break;
-
-    case 'k':
-      // Kick / Shoot: Yellow + beep
-      setLeds(150, 150, 0);
-      buzzer.tone(1500, 200);
-      delay(200);
-      buzzer.noTone();
-      Serial.println("[mBot] 'k' -> KICK! (Buzzer Beep + Yellow)");
-      break;
-
-    case 'c':
-      // Celebrate: Rainbow flash
-      Serial.println("[mBot] 'c' -> CELEBRATE!");
-      for (int i = 0; i < 3; i++) {
-        setLeds(150, 0, 0); delay(100);
-        setLeds(0, 150, 0); delay(100);
-        setLeds(0, 0, 150); delay(100);
-      }
-      setLeds(0, 0, 0);
-      break;
-
-    case ' ':
-      // Stop: All LEDs OFF
-      setLeds(0, 0, 0);
-      Serial.println("[mBot] ' ' -> STOP (LEDs Off)");
-      break;
-
-    case '+':
-      buzzer.tone(1200, 100);
       delay(100);
-      buzzer.noTone();
-      Serial.println("[mBot] '+' -> Speed Cap UP");
-      break;
-
-    case '-':
-      buzzer.tone(800, 100);
+      setLeds(0, 150, 0);
       delay(100);
-      buzzer.noTone();
-      Serial.println("[mBot] '-' -> Speed Cap DOWN");
-      break;
+      setLeds(0, 0, 150);
+      delay(100);
+    }
+    setLeds(0, 0, 0);
+    break;
 
-    default:
-      break;
+  case ' ':
+    // Stop: All LEDs OFF
+    setLeds(0, 0, 0);
+    Serial.println("[mBot] ' ' -> STOP (LEDs Off)");
+    break;
+
+  case '+':
+    buzzer.tone(1200, 100);
+    delay(100);
+    buzzer.noTone();
+    Serial.println("[mBot] '+' -> Speed Cap UP");
+    break;
+
+  case '-':
+    buzzer.tone(800, 100);
+    delay(100);
+    buzzer.noTone();
+    Serial.println("[mBot] '-' -> Speed Cap DOWN");
+    break;
+
+  default:
+    break;
   }
 }
 

@@ -85,29 +85,47 @@ def main():
     print("  exit    : Quit and disconnect")
     print("==================================================")
 
+    import keyboard
+    
+    print("Hold 'w/s/a/d' to move. Release to stop. Press 'Esc' to exit.")
+    
+    current_action = ' '
+    
     try:
         while True:
-            cmd = input("\nEnter command: ").strip()
-            if not cmd:
-                bot.stop()
-                print("-> Sent STOP.")
-                continue
-
-            if cmd.lower() in ['exit', 'quit']:
+            if keyboard.is_pressed('esc'):
                 break
-
-            char = cmd[0]
-            if char in ['w', 's', 'a', 'd', 'q', 'e', 'x', 'c', 'k', ' ', '+', '-']:
-                bot.send_raw(char)
-                print(f"-> Sent: '{char}'")
+                
+            new_action = ' '
+            if keyboard.is_pressed('w'): new_action = 'w'
+            elif keyboard.is_pressed('s'): new_action = 's'
+            elif keyboard.is_pressed('a'): new_action = 'a'
+            elif keyboard.is_pressed('d'): new_action = 'd'
+            elif keyboard.is_pressed('q'): new_action = 'q'
+            elif keyboard.is_pressed('e'): new_action = 'e'
+            elif keyboard.is_pressed('x'): new_action = 'x'
+            elif keyboard.is_pressed('c'): new_action = 'c'
+            elif keyboard.is_pressed('k'): new_action = 'k'
+            elif keyboard.is_pressed('+'): new_action = '+'
+            elif keyboard.is_pressed('-'): new_action = '-'
+            
+            if new_action != ' ':
+                bot.send_raw(new_action)
+                if current_action != new_action:
+                    print(f"-> Started: '{new_action}'")
             else:
-                print(f"Unknown command '{char}'. Valid keys: w, s, a, d, q, e, x, c, k, [space], +, -")
+                if current_action != ' ':
+                    bot.send_raw(' ')
+                    print("-> Stopped (key released)")
+                    
+            current_action = new_action
+            time.sleep(0.1)  # Send commands every 100ms to keep Arduino timeout fresh
+            
     except KeyboardInterrupt:
         print("\nExiting...")
     finally:
         bot.disconnect()
         print("Done!")
-
 
 if __name__ == "__main__":
     main()

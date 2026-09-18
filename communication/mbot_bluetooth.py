@@ -16,10 +16,10 @@ from typing import Optional
 class MBotBluetooth:
     """Manages the Bluetooth serial connection to the mBot."""
 
-    def __init__(self, port: Optional[str] = None, baudrate: int = 9600, timeout: float = 1.0):
+    def __init__(self, port: Optional[str] = None, baudrate: int = 115200, timeout: float = 1.0):
         """
         Initialize the communication interface.
-        Note: mbot_motor_control.ino uses 9600 baud.
+        Note: The Makeblock Bluetooth module operates at 115200 baud.
         """
         self.port = port
         self.baudrate = baudrate
