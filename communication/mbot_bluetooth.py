@@ -73,6 +73,23 @@ class MBotBluetooth:
             print(f"[COMM] Transmission error: {e}")
             return False
 
+    def read_response(self, timeout: float = 0.5) -> str:
+        """Reads any incoming response text from the mBot."""
+        if not self.is_connected():
+            return ""
+        time.sleep(0.05)
+        lines = []
+        start = time.time()
+        while time.time() - start < timeout:
+            if self.ser.in_waiting > 0:
+                try:
+                    chunk = self.ser.read(self.ser.in_waiting).decode('utf-8', errors='replace')
+                    lines.append(chunk)
+                except Exception:
+                    pass
+            time.sleep(0.02)
+        return "".join(lines)
+
     # --- High-Level Command API for CV Team ---
 
     def forward(self):
