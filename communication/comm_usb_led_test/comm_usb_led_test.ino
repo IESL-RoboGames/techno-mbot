@@ -18,8 +18,9 @@ void setup() {
   setLeds(0, 0, 0);   // All off
 
   // Startup beep
-  buzzer.tone(1000, 150);
-  delay(150);
+  buzzer.setpin(8); // mCore onboard Buzzer pin
+  buzzer.tone(1000, 200);
+  delay(200);
   buzzer.noTone();
 
   Serial.println("======================================");
