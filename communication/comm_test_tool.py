@@ -30,13 +30,28 @@ def main():
         return
 
     print("Available Ports on your PC:")
+    default_port = None
+    default_idx = None
     for idx, (port_name, desc) in enumerate(ports):
-        print(f"  [{idx + 1}] {port_name}: {desc}")
+        marker = ""
+        if "[mBot Detected]" in desc:
+            marker = " <-- [RECOMMENDED]"
+            if not default_port:
+                default_port = port_name
+                default_idx = idx + 1
+        print(f"  [{idx + 1}] {port_name}: {desc}{marker}")
 
     # Prompt user to choose port
     try:
-        selection = input("\nEnter port number (e.g. 1) or type COM name (e.g. COM5): ").strip()
-        if selection.isdigit() and 1 <= int(selection) <= len(ports):
+        prompt_str = "\nEnter port number (e.g. 1) or type COM name"
+        if default_port:
+            prompt_str += f" [Press Enter for {default_port} (Port {default_idx})]"
+        prompt_str += ": "
+
+        selection = input(prompt_str).strip()
+        if not selection and default_port:
+            chosen_port = default_port
+        elif selection.isdigit() and 1 <= int(selection) <= len(ports):
             chosen_port = ports[int(selection) - 1][0]
         elif selection.upper().startswith("COM"):
             chosen_port = selection.upper()
@@ -88,9 +103,15 @@ def main():
 
     import keyboard
     
-    print("Hold 'w/s/a/d' to move. Release to stop. Press 'Esc' to exit.")
+    print("Hold 'w/s/a/d' to move. Release to stop.")
+    print("Press 'k' to kick, 'c' to celebrate, 'x' for 180°, 'o/p' for servo, '+/-' for speed.")
+    print("Press 'Esc' to exit.")
     
+    CONTINUOUS_ACTIONS = {'w', 's', 'a', 'd', 'q', 'e'}
+    ONE_SHOT_ACTIONS = {'k', 'x', 'c', 'o', 'p', '+', '-'}
+
     current_action = ' '
+    held_one_shots = set()
     
     try:
         while True:
@@ -111,18 +132,35 @@ def main():
             elif keyboard.is_pressed('p'): new_action = 'p'
             elif keyboard.is_pressed('+'): new_action = '+'
             elif keyboard.is_pressed('-'): new_action = '-'
+
+            # Release any one-shot keys that are no longer pressed
+            for action in list(held_one_shots):
+                if not keyboard.is_pressed(action):
+                    held_one_shots.remove(action)
             
-            if new_action != ' ':
+            if new_action in CONTINUOUS_ACTIONS:
                 bot.send_raw(new_action)
                 if current_action != new_action:
                     print(f"-> Started: '{new_action}'")
+                current_action = new_action
+
+            elif new_action in ONE_SHOT_ACTIONS:
+                # Only fire once when first pressed. Holding the key down will NOT repeat.
+                if new_action not in held_one_shots:
+                    held_one_shots.add(new_action)
+                    bot.send_raw(new_action)
+                    print(f"-> Started: '{new_action}'")
+                # Do not change current_action to a continuous driving state
+
             else:
-                if current_action != ' ':
+                # Key released (new_action == ' ')
+                # Only send stop if we were previously moving
+                if current_action in CONTINUOUS_ACTIONS:
                     bot.send_raw(' ')
                     print("-> Stopped (key released)")
+                current_action = ' '
                     
-            current_action = new_action
-            time.sleep(0.1)  # Send commands every 100ms to keep Arduino timeout fresh
+            time.sleep(0.05)  # Responsive 50ms polling loop
             
     except KeyboardInterrupt:
         print("\nExiting...")

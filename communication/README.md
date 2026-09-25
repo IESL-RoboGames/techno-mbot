@@ -70,7 +70,8 @@ This tool scans your ports, connects to the mBot, and lets you drive it seamless
 ```python
 from communication.mbot_bluetooth import MBotBluetooth
 
-bot = MBotBluetooth(port="COM5")  # replace with your Bluetooth port
+# Auto-detects the paired Makeblock mBot (e.g. COM23), or specify explicitly: MBotBluetooth(port="COM23")
+bot = MBotBluetooth()  
 if bot.connect():
     bot.forward()
     bot.curve_left()
