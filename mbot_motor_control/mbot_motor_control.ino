@@ -123,17 +123,97 @@ void rotate180() {
   stopRobot();
 }
 
-// Extra "special functionality": quick side-to-side wiggle, e.g. after a goal
+// Victory Sound Effect (Final Fantasy VII Victory Fanfare) + Synchronized Dance
 void celebrate() {
-  for (int i = 0; i < 2; i++) {
-    setMotorSpeeds(-80, 80);
-    setLeds(150, 0, 0);
-    delay(150);
-    setMotorSpeeds(80, -80);
-    setLeds(0, 150, 0);
-    delay(150);
+  struct Note {
+    int freq;
+    int duration; // ms sound plays
+    int pause;    // ms rest after note
+  };
+
+  const Note melody[] = {
+    { 523, 100, 20 },  // 1: C5 (da)
+    { 523, 100, 20 },  // 2: C5 (da)
+    { 523, 100, 20 },  // 3: C5 (da)
+    { 523, 320, 50 },  // 4: C5 (DAAA)
+    { 415, 320, 50 },  // 5: Ab4 / G#4 (daaa)
+    { 466, 320, 100 }, // 6: Bb4 / A#4 (daaa)
+    { 523, 150, 100 }, // 7: C5 (da)
+    { 466, 130, 20 },  // 8: Bb4 (da)
+    { 523, 650, 50 }   // 9: C5 (DAAAAA!)
+  };
+
+  // Synchronized gentle wiggle & RGB LEDs to the Victory Fanfare beats
+  for (int i = 0; i < 9; i++) {
+    if (Serial.available() > 0) {
+      break;
+    }
+
+    switch (i) {
+      case 0:
+      case 2:
+        // Tiny gentle nudge left with gold LEDs
+        leftMotor.run(45);
+        rightMotor.run(45);
+        setLeds(255, 200, 0);
+        break;
+      case 1:
+      case 3:
+        // Tiny gentle nudge right with cyan LEDs
+        leftMotor.run(-45);
+        rightMotor.run(-45);
+        setLeds(0, 220, 255);
+        break;
+      case 4:
+        // Gentle sway left with purple LEDs on Ab4
+        leftMotor.run(40);
+        rightMotor.run(40);
+        setLeds(200, 0, 220);
+        break;
+      case 5:
+        // Gentle sway right with emerald LEDs on Bb4
+        leftMotor.run(-40);
+        rightMotor.run(-40);
+        setLeds(0, 255, 120);
+        break;
+      case 6:
+        // Stationary: bright white flash on C5
+        leftMotor.run(0);
+        rightMotor.run(0);
+        setLeds(255, 255, 255);
+        break;
+      case 7:
+        // Stationary: warm amber LEDs on Bb4
+        leftMotor.run(0);
+        rightMotor.run(0);
+        setLeds(255, 120, 0);
+        break;
+      case 8:
+        // Stationary: triumphant bright green glow on final held note
+        leftMotor.run(0);
+        rightMotor.run(0);
+        setLeds(0, 255, 0);
+        break;
+    }
+
+    // Play tone on buzzer
+    buzzer.tone(melody[i].freq, melody[i].duration);
+    delay(melody[i].duration);
+    buzzer.noTone();
+
+    // Stop motor nudge during pause so robot stays in place
+    leftMotor.run(0);
+    rightMotor.run(0);
+
+    if (melody[i].pause > 0) {
+      delay(melody[i].pause);
+    }
   }
+
+  // Celebration complete: ensure motors stopped & turn off LEDs
+  buzzer.noTone();
   stopRobot();
+  lastCommandTime = millis();
 }
 
 // SERVO / KICKER FUNCTIONS
