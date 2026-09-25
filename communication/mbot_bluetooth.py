@@ -46,8 +46,6 @@ def _get_windows_bt_devices() -> dict:
         return names
     except Exception:
         return {}
-
-
 class MBotBluetooth:
     """Manages the Bluetooth serial connection to the mBot."""
 
@@ -210,7 +208,6 @@ class MBotBluetooth:
     def kick(self):
         """Triggers kicker servo strike on pin A0."""
         return self.send_raw('k')
-
     def stop(self):
         """Stops both motors."""
         return self.send_raw(' ')

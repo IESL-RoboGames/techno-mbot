@@ -18,7 +18,6 @@ const int SERVO_PIN = A0;
 const int SERVO_REST_ANGLE = 0;      // Rest / retracted position (degrees)
 const int SERVO_KICK_ANGLE = 90;     // Kick / extended strike position (degrees)
 const int SERVO_KICK_DELAY_MS = 250; // Milliseconds to hold extended position during kick
-
 // Safety: speed limiting
 const int MAX_SPEED = 150;
 const int SPEED_STEP = 20; // how much +/- changes the cap per keypress
