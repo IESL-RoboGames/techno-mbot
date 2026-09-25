@@ -146,7 +146,15 @@ void resetServo() {
 }
 
 // Full kick sequence: swing forward to strike the ball, then retract
+unsigned long lastKickTime = 0;
+const unsigned long KICK_COOLDOWN_MS = 500; // Debounce: prevent rapid-fire repeated kicks
+
 void kick() {
+  if (millis() - lastKickTime < KICK_COOLDOWN_MS) {
+    return; // Ignore if called again too quickly
+  }
+  lastKickTime = millis();
+
   setLeds(150, 150, 0); // Yellow indicator while kicking
   buzzer.tone(1500, 150);
   setServoAngle(SERVO_KICK_ANGLE);
@@ -155,6 +163,12 @@ void kick() {
   delay(150); // Give time for servo arm to retract
   buzzer.noTone();
   stopRobot();
+
+  // Clear any extra 'k' commands queued during the kick delay
+  while (Serial.available() > 0) {
+    Serial.read();
+  }
+  lastCommandTime = millis();
 }
 
 // SERIAL TEST HARNESS - stand-in for gesture/Bluetooth input for now

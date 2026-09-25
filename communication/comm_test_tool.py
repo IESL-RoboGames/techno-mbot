@@ -103,9 +103,15 @@ def main():
 
     import keyboard
     
-    print("Hold 'w/s/a/d' to move. Release to stop. Press 'Esc' to exit.")
+    print("Hold 'w/s/a/d' to move. Release to stop.")
+    print("Press 'k' to kick, 'c' to celebrate, 'x' for 180°, 'o/p' for servo, '+/-' for speed.")
+    print("Press 'Esc' to exit.")
     
+    CONTINUOUS_ACTIONS = {'w', 's', 'a', 'd', 'q', 'e'}
+    ONE_SHOT_ACTIONS = {'k', 'x', 'c', 'o', 'p', '+', '-'}
+
     current_action = ' '
+    held_one_shots = set()
     
     try:
         while True:
@@ -126,18 +132,35 @@ def main():
             elif keyboard.is_pressed('p'): new_action = 'p'
             elif keyboard.is_pressed('+'): new_action = '+'
             elif keyboard.is_pressed('-'): new_action = '-'
+
+            # Release any one-shot keys that are no longer pressed
+            for action in list(held_one_shots):
+                if not keyboard.is_pressed(action):
+                    held_one_shots.remove(action)
             
-            if new_action != ' ':
+            if new_action in CONTINUOUS_ACTIONS:
                 bot.send_raw(new_action)
                 if current_action != new_action:
                     print(f"-> Started: '{new_action}'")
+                current_action = new_action
+
+            elif new_action in ONE_SHOT_ACTIONS:
+                # Only fire once when first pressed. Holding the key down will NOT repeat.
+                if new_action not in held_one_shots:
+                    held_one_shots.add(new_action)
+                    bot.send_raw(new_action)
+                    print(f"-> Started: '{new_action}'")
+                # Do not change current_action to a continuous driving state
+
             else:
-                if current_action != ' ':
+                # Key released (new_action == ' ')
+                # Only send stop if we were previously moving
+                if current_action in CONTINUOUS_ACTIONS:
                     bot.send_raw(' ')
                     print("-> Stopped (key released)")
+                current_action = ' '
                     
-            current_action = new_action
-            time.sleep(0.1)  # Send commands every 100ms to keep Arduino timeout fresh
+            time.sleep(0.05)  # Responsive 50ms polling loop
             
     except KeyboardInterrupt:
         print("\nExiting...")
