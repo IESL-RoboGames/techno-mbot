@@ -270,11 +270,13 @@ void loop() {
     handleCommand(c);
   }
 
-  // Communication/signal loss failsafe: if no command received recently, force
-  // stop. (Right now "silence" just means no one typed anything - once
-  // Bluetooth is in, this same check will catch a dropped wireless link.)
+  // Communication failsafe:
+  // Disabled for Mobile App control so the robot doesn't stop after 800ms while holding.
+  // The robot stops immediately when the button is released (sending 'S' / space) or stop is pressed.
+  /*
   if (millis() - lastCommandTime > COMM_TIMEOUT_MS &&
       (currentLeftSpeed != 0 || currentRightSpeed != 0)) {
     stopRobot();
   }
+  */
 }
