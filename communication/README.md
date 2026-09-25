@@ -78,3 +78,30 @@ if bot.connect():
     bot.stop()
     bot.disconnect()
 ```
+
+---
+
+## 📱 Mobile Phone Control (Android)
+
+To drive the mBot independently using an Android phone, use any free Bluetooth controller app from the Google Play Store:
+
+### Recommended Free Apps:
+1. **"Arduino Bluetooth Controller"** (by Apps Valley) — 100% free with dedicated Gamepad / Remote control mode.
+2. **"ROBOBOY"** (Arduino & ESP Bluetooth Controller) — 100% free, supports BLE and Classic Bluetooth with customizable buttons.
+3. **"Serial Bluetooth Terminal"** (by Kai Morich) — 100% free, zero ads, reliable macro button layout.
+
+### Button Mapping:
+Configure the app buttons to send single ASCII characters with **Newline set to None**:
+
+| Button | Key on Press | Key on Release | Robot Action |
+|:---:|:---:|:---:|---|
+| **Up / Forward** | `'w'` | `' '` (Space) | Drive forward |
+| **Down / Reverse** | `'s'` | `' '` (Space) | Drive backward |
+| **Left** | `'a'` | `' '` (Space) | Spin left |
+| **Right** | `'d'` | `' '` (Space) | Spin right |
+| **Kick / Shoot** | `'k'` | None | Strike kicker servo on A0 |
+| **Celebrate** | `'c'` | None | Goal victory wiggle |
+| **Stop / Brake** | `' '` | None | Stop both motors |
+| **Speed +** | `'+'` | None | Increase speed cap |
+| **Speed -** | `'-'` | None | Decrease speed cap |
+
