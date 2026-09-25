@@ -30,13 +30,28 @@ def main():
         return
 
     print("Available Ports on your PC:")
+    default_port = None
+    default_idx = None
     for idx, (port_name, desc) in enumerate(ports):
-        print(f"  [{idx + 1}] {port_name}: {desc}")
+        marker = ""
+        if "[mBot Detected]" in desc:
+            marker = " <-- [RECOMMENDED]"
+            if not default_port:
+                default_port = port_name
+                default_idx = idx + 1
+        print(f"  [{idx + 1}] {port_name}: {desc}{marker}")
 
     # Prompt user to choose port
     try:
-        selection = input("\nEnter port number (e.g. 1) or type COM name (e.g. COM5): ").strip()
-        if selection.isdigit() and 1 <= int(selection) <= len(ports):
+        prompt_str = "\nEnter port number (e.g. 1) or type COM name"
+        if default_port:
+            prompt_str += f" [Press Enter for {default_port} (Port {default_idx})]"
+        prompt_str += ": "
+
+        selection = input(prompt_str).strip()
+        if not selection and default_port:
+            chosen_port = default_port
+        elif selection.isdigit() and 1 <= int(selection) <= len(ports):
             chosen_port = ports[int(selection) - 1][0]
         elif selection.upper().startswith("COM"):
             chosen_port = selection.upper()
