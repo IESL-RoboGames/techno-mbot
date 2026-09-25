@@ -177,21 +177,27 @@ void handleCommand(char c) {
   lastCommandTime = millis();
   switch (c) {
   case 'w':
+  case 'F': // Standard RC forward
     moveForward();
     break;
   case 's':
+  case 'B': // Standard RC backward
     moveBackward();
     break;
   case 'a':
+  case 'L': // Standard RC left
     turnLeft();
     break;
   case 'd':
+  case 'R': // Standard RC right
     turnRight();
     break;
   case 'q':
+  case 'G': // Standard RC forward-left
     curveLeft();
     break;
   case 'e':
+  case 'I': // Standard RC forward-right
     curveRight();
     break;
   case 'x':
@@ -201,6 +207,8 @@ void handleCommand(char c) {
     celebrate();
     break;
   case 'k':
+  case 'X': // Standard RC action / button
+  case 'V': // Standard RC horn button
     kick();
     break;
   case 'o':
@@ -212,6 +220,8 @@ void handleCommand(char c) {
     resetServo();
     break;
   case ' ':
+  case 'S': // Standard RC stop
+  case 'D': // Standard RC stop all
     stopRobot();
     break;
   case '+':

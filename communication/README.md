@@ -85,23 +85,28 @@ if bot.connect():
 
 To drive the mBot independently using an Android phone, use any free Bluetooth controller app from the Google Play Store:
 
-### Recommended Free Apps:
-1. **"Arduino Bluetooth Controller"** (by Apps Valley) — 100% free with dedicated Gamepad / Remote control mode.
-2. **"ROBOBOY"** (Arduino & ESP Bluetooth Controller) — 100% free, supports BLE and Classic Bluetooth with customizable buttons.
-3. **"Serial Bluetooth Terminal"** (by Kai Morich) — 100% free, zero ads, reliable macro button layout.
+### Recommended 100% Free Gamepad Apps on Google Play:
+1. **"Connectino: Arduino Bluetooth"** (Search `Connectino`)
+   - **UI**: Modern virtual PlayStation / console gamepad with thumbsticks & ABXY buttons.
+2. **"Arduino Bluetooth Control Plus"** (Search `Bluetronics`)
+   - **UI**: Dedicated Gamepad mode with analog touch joystick and customizable action buttons.
+3. **"Bluetooth RC Controller"** (by Andi.Co / Search `Bluetooth RC Controller`)
+   - **UI**: Dedicated RC car steering and accelerator pad (works out of the box with standard RC `F/B/L/R/S` codes).
 
-### Button Mapping:
-Configure the app buttons to send single ASCII characters with **Newline set to None**:
+### Supported Button Commands:
+The Arduino firmware accepts both custom keys and standard RC car protocol characters:
 
-| Button | Key on Press | Key on Release | Robot Action |
-|:---:|:---:|:---:|---|
-| **Up / Forward** | `'w'` | `' '` (Space) | Drive forward |
-| **Down / Reverse** | `'s'` | `' '` (Space) | Drive backward |
-| **Left** | `'a'` | `' '` (Space) | Spin left |
-| **Right** | `'d'` | `' '` (Space) | Spin right |
-| **Kick / Shoot** | `'k'` | None | Strike kicker servo on A0 |
-| **Celebrate** | `'c'` | None | Goal victory wiggle |
-| **Stop / Brake** | `' '` | None | Stop both motors |
-| **Speed +** | `'+'` | None | Increase speed cap |
-| **Speed -** | `'-'` | None | Decrease speed cap |
+| Button / Function | Custom Keys | Standard RC Codes | Robot Action |
+|---|:---:|:---:|---|
+| **Forward** | `'w'` | `'F'` | Drive forward |
+| **Backward** | `'s'` | `'B'` | Drive backward |
+| **Turn Left** | `'a'` | `'L'` | Spin left |
+| **Turn Right** | `'d'` | `'R'` | Spin right |
+| **Curve Left** | `'q'` | `'G'` | Arc forward-left |
+| **Curve Right** | `'e'` | `'I'` | Arc forward-right |
+| **Kick / Shoot** | `'k'` | `'X'` / `'V'` *(Horn)* | Strike kicker servo on A0 |
+| **Celebrate** | `'c'` | — | Victory celebration wiggle |
+| **Stop / Brake** | `' '` *(Space)* | `'S'` / `'D'` | Stop motors |
+| **Speed + / -** | `'+'` / `'-'` | — | Adjust speed cap |
+
 
