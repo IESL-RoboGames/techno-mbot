@@ -599,8 +599,8 @@ def main():
                 put_text(frame, "SHOOT", (w // 2 - 34, h // 2 - 34), color=COL_RED, scale=0.8, thickness=2)
 
             # Minimalist speed meter + robot link status, bottom-left.
-            draw_speed_meter(frame, 22, h - 30, 160, 10, speed_cap, SPEED_MAX)
-            draw_robot_status(frame, 22, h - 45, bridge is not None)
+            draw_robot_status(frame, 22, h - 55, bridge is not None)
+            draw_speed_meter(frame, 22, h - 24, 160, 10, speed_cap, SPEED_MAX)
 
             cv2.imshow("Gesture Control", frame)
 
