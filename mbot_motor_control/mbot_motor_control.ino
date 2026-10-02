@@ -14,7 +14,7 @@ MeBuzzer buzzer;
 // Uses standard Arduino Servo driver bundled in Makeblock to prevent duplicate symbol linker conflicts
 #include <utility/Servo.h>
 Servo kickerServo;
-const int SERVO_PIN = A0;
+const int SERVO_PIN = 9;
 const int SERVO_REST_ANGLE = 0;      // Rest / retracted position (degrees)
 const int SERVO_KICK_ANGLE = 90;     // Kick / extended strike position (degrees)
 const int SERVO_KICK_DELAY_MS = 250; // Milliseconds to hold extended position during kick
@@ -97,16 +97,21 @@ void turnRight() {
   rgbLeds.show();
 }
 
-// Gentle arc turn: one wheel slower, not reversed - useful for approaching the
-// ball at an angle rather than spinning on the spot
+// Gentle arc turn: moves forward while curving slightly in the target direction.
+// Inner wheel runs at 70% of currentSpeedCap so the robot keeps strong forward momentum
+// instead of stalling or turning too sharply.
+const int CURVE_INNER_RATIO = 50; // 70% inner wheel speed (tune between 60-80 for tighter/wider arc)
+
 void curveLeft() { 
-  setMotorSpeeds(currentSpeedCap / 3, currentSpeedCap); 
+  int innerSpeed = (currentSpeedCap * CURVE_INNER_RATIO) / 100;
+  setMotorSpeeds(innerSpeed, currentSpeedCap); 
   rgbLeds.setColor(1, 0, 150, 150);
   rgbLeds.setColor(2, 0, 50, 50);
   rgbLeds.show();
 }
 void curveRight() { 
-  setMotorSpeeds(currentSpeedCap, currentSpeedCap / 3); 
+  int innerSpeed = (currentSpeedCap * CURVE_INNER_RATIO) / 100;
+  setMotorSpeeds(currentSpeedCap, innerSpeed); 
   rgbLeds.setColor(1, 0, 50, 50);
   rgbLeds.setColor(2, 0, 150, 150);
   rgbLeds.show();
