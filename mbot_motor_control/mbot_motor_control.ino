@@ -27,25 +27,25 @@ const int FULL_POWER = 255;
 // --- MASTER OVERRIDE ---
 // Set to true to force ALL functions to run at 100% Full Power (255) at once.
 // Set to false to use the individual function settings below.
-const bool ALL_FULL_POWER = true;
+const bool ALL_FULL_POWER = false;
 
 // --- INDIVIDUAL FUNCTION SETTINGS ---
 // For each function, set *_FULL_POWER to true for 255, or false to use the specific speed.
 
 // 1. Forward ('w', 'F')
-const bool FORWARD_FULL_POWER    = false; // true = 255 (Full Power), false = use FORWARD_SPEED
+const bool FORWARD_FULL_POWER    = true; // true = 255 (Full Power), false = use FORWARD_SPEED
 const int  FORWARD_SPEED         = 150;   // Specific speed (0 to 255)
 
 // 2. Backward ('s', 'B')
-const bool BACKWARD_FULL_POWER   = false; // true = 255 (Full Power), false = use BACKWARD_SPEED
+const bool BACKWARD_FULL_POWER   = true; // true = 255 (Full Power), false = use BACKWARD_SPEED
 const int  BACKWARD_SPEED        = 130;   // Specific speed (0 to 255)
 
 // 3. In-Place Pivot Turn ('a', 'd', 'L', 'R')
 const bool TURN_FULL_POWER       = false; // true = 255 (Full Power), false = use TURN_SPEED
-const int  TURN_SPEED            = 120;   // Specific speed (0 to 255)
+const int  TURN_SPEED            = 98;   // Specific speed (0 to 255)
 
 // 4. Curve / Arc Turn ('q', 'e', 'G', 'I')
-const bool CURVE_FULL_POWER      = false; // true = outer wheel at 255, false = use CURVE_SPEED
+const bool CURVE_FULL_POWER      = true; // true = outer wheel at 255, false = use CURVE_SPEED
 const int  CURVE_SPEED           = 150;   // Outer wheel speed (0 to 255)
 const int  CURVE_INNER_RATIO     = 50;    // Inner wheel % of outer wheel (e.g. 50 = half speed, 70 = wider/gentler arc)
 
