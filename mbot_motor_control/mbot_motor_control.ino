@@ -14,33 +14,110 @@ MeBuzzer buzzer;
 // Uses standard Arduino Servo driver bundled in Makeblock to prevent duplicate symbol linker conflicts
 #include <utility/Servo.h>
 Servo kickerServo;
-const int SERVO_PIN = A0;
+const int SERVO_PIN = 9;
 const int SERVO_REST_ANGLE = 0;      // Rest / retracted position (degrees)
 const int SERVO_KICK_ANGLE = 90;     // Kick / extended strike position (degrees)
 const int SERVO_KICK_DELAY_MS = 250; // Milliseconds to hold extended position during kick
-// Safety: speed limiting
-const int MAX_SPEED = 150;
-const int SPEED_STEP = 20; // how much +/- changes the cap per keypress
-int currentSpeedCap = 100; // starting speed (<= MAX_SPEED)
+// =============================================================================
+// ⚙️ SPEED & POWER CONFIGURATION INTERFACE (CHANGE ALL SPEEDS HERE)
+// =============================================================================
+// Note: mBot DC motor speed ranges from 0 (stopped) to 255 (100% full battery power).
+const int FULL_POWER = 255;
 
-// Safety: smooth acceleration / deceleration
+// --- MASTER OVERRIDE ---
+// Set to true to force ALL functions to run at 100% Full Power (255) at once.
+// Set to false to use the individual function settings below.
+const bool ALL_FULL_POWER = false;
+
+// --- INDIVIDUAL FUNCTION SETTINGS ---
+// For each function, set *_FULL_POWER to true for 255, or false to use the specific speed.
+
+// 1. Forward ('w', 'F')
+const bool FORWARD_FULL_POWER    = true; // true = 255 (Full Power), false = use FORWARD_SPEED
+const int  FORWARD_SPEED         = 150;   // Specific speed (0 to 255)
+
+// 2. Backward ('s', 'B')
+const bool BACKWARD_FULL_POWER   = true; // true = 255 (Full Power), false = use BACKWARD_SPEED
+const int  BACKWARD_SPEED        = 130;   // Specific speed (0 to 255)
+
+// 3. In-Place Pivot Turn ('a', 'd', 'L', 'R')
+const bool TURN_FULL_POWER       = false; // true = 255 (Full Power), false = use TURN_SPEED
+const int  TURN_SPEED            = 98;   // Specific speed (0 to 255)
+
+// 4. Curve / Arc Turn ('q', 'e', 'G', 'I')
+const bool CURVE_FULL_POWER      = true; // true = outer wheel at 255, false = use CURVE_SPEED
+const int  CURVE_SPEED           = 150;   // Outer wheel speed (0 to 255)
+const int  CURVE_INNER_RATIO     = 50;    // Inner wheel % of outer wheel (e.g. 50 = half speed, 70 = wider/gentler arc)
+
+// 5. 180-Degree Turn-Around Spin ('x')
+const bool ROTATE180_FULL_POWER  = false; // true = 255 (Full Power), false = use ROTATE180_SPEED
+const int  ROTATE180_SPEED       = 150;   // Specific speed (0 to 255)
+const unsigned long ROTATE_180_MS = 650;  // Milliseconds to spin for 180 degrees
+
+// 6. Celebration Wiggle ('c')
+const int  CELEBRATE_SPEED       = 100;   // Speed during victory wiggle (0 to 255)
+
+// --- MOTOR ACCELERATION RAMPING ---
+const int RAMP_STEP  = 15; // Speed change per ramp step (bigger = snappier, e.g. 255 = instant)
+const int RAMP_DELAY = 20; // Milliseconds to wait between each ramp step
+
+// --- RUNTIME SPEED LIMITER (+ / - keys) ---
+// If true, pressing '+' and '-' in serial/Bluetooth caps all speeds to currentSpeedCap.
+// If false, each function runs strictly at its configured speed above.
+const bool ENABLE_RUNTIME_SPEED_CAP = false;
+const int  MAX_SPEED                = 255;
+const int  SPEED_STEP               = 20;
+int        currentSpeedCap          = 255;
+
+// =============================================================================
+// Helper functions to resolve final speeds
+// =============================================================================
+inline int getForwardSpeed() {
+  return (ALL_FULL_POWER || FORWARD_FULL_POWER) ? FULL_POWER : FORWARD_SPEED;
+}
+
+inline int getBackwardSpeed() {
+  return (ALL_FULL_POWER || BACKWARD_FULL_POWER) ? FULL_POWER : BACKWARD_SPEED;
+}
+
+inline int getTurnSpeed() {
+  return (ALL_FULL_POWER || TURN_FULL_POWER) ? FULL_POWER : TURN_SPEED;
+}
+
+inline int getCurveOuterSpeed() {
+  return (ALL_FULL_POWER || CURVE_FULL_POWER) ? FULL_POWER : CURVE_SPEED;
+}
+
+inline int getCurveInnerSpeed() {
+  return (getCurveOuterSpeed() * constrain(CURVE_INNER_RATIO, 0, 100)) / 100;
+}
+
+inline int getRotate180Speed() {
+  return (ALL_FULL_POWER || ROTATE180_FULL_POWER) ? FULL_POWER : ROTATE180_SPEED;
+}
+
+// Safety: smooth acceleration / deceleration tracking
 int currentLeftSpeed = 0;
 int currentRightSpeed = 0;
-const int RAMP_STEP = 15;  // speed change per ramp tick (bigger = snappier)
-const int RAMP_DELAY = 20; // ms to wait between each of those steps
 
-// Every time a valid command arrives we reset this timer. If too long passes
-// with no command, we stop the robot. This is the same mechanism the
-// Bluetooth/gesture layer will reuse later.
+// Communication failsafe timer
 unsigned long lastCommandTime = 0;
 const unsigned long COMM_TIMEOUT_MS = 800; // stop if silent for this long
 
-// ramp both motors smoothly toward a target
+int stepToward(int current, int target, int step) {
+  if (current < target)
+    return min(current + step, target);
+  if (current > target)
+    return max(current - step, target);
+  return current;
+}
 
+// Ramp both motors smoothly toward target speeds
 void setMotorSpeeds(int targetLeft, int targetRight) {
-  // Clamp targets to the safety cap
-  targetLeft = constrain(targetLeft, -currentSpeedCap, currentSpeedCap);
-  targetRight = constrain(targetRight, -currentSpeedCap, currentSpeedCap);
+  // Clamp targets to safety limit (-255 to 255, or currentSpeedCap if runtime cap is enabled)
+  int cap = ENABLE_RUNTIME_SPEED_CAP ? currentSpeedCap : FULL_POWER;
+  targetLeft = constrain(targetLeft, -cap, cap);
+  targetRight = constrain(targetRight, -cap, cap);
 
   // Ramp both motors together, one step at a time, until both reach target
   while (currentLeftSpeed != targetLeft || currentRightSpeed != targetRight) {
@@ -52,14 +129,6 @@ void setMotorSpeeds(int targetLeft, int targetRight) {
 
     delay(RAMP_DELAY);
   }
-}
-
-int stepToward(int current, int target, int step) {
-  if (current < target)
-    return min(current + step, target);
-  if (current > target)
-    return max(current - step, target);
-  return current;
 }
 
 // MOVEMENT FUNCTIONS
@@ -75,48 +144,57 @@ void stopRobot() {
 }
 
 void moveForward() { 
-  setMotorSpeeds(currentSpeedCap, currentSpeedCap); 
+  int spd = getForwardSpeed();
+  setMotorSpeeds(spd, spd); 
   setLeds(0, 150, 0); // Green
 }
+
 void moveBackward() { 
-  setMotorSpeeds(-currentSpeedCap, -currentSpeedCap); 
+  int spd = getBackwardSpeed();
+  setMotorSpeeds(-spd, -spd); 
   setLeds(150, 0, 0); // Red
 }
 
-// In place pivot: wheels spin opposite directions
+// In-place pivot: wheels spin opposite directions
 void turnLeft() { 
-  setMotorSpeeds(-currentSpeedCap, currentSpeedCap); 
+  int spd = getTurnSpeed();
+  setMotorSpeeds(-spd, spd); 
   rgbLeds.setColor(1, 0, 0, 150);
   rgbLeds.setColor(2, 0, 0, 0);
   rgbLeds.show();
 }
+
 void turnRight() { 
-  setMotorSpeeds(currentSpeedCap, -currentSpeedCap); 
+  int spd = getTurnSpeed();
+  setMotorSpeeds(spd, -spd); 
   rgbLeds.setColor(1, 0, 0, 0);
   rgbLeds.setColor(2, 0, 0, 150);
   rgbLeds.show();
 }
 
-// Gentle arc turn: one wheel slower, not reversed - useful for approaching the
-// ball at an angle rather than spinning on the spot
+// Gentle arc turn: moves forward while curving slightly in the target direction
 void curveLeft() { 
-  setMotorSpeeds(currentSpeedCap / 3, currentSpeedCap); 
+  int outerSpd = getCurveOuterSpeed();
+  int innerSpd = getCurveInnerSpeed();
+  setMotorSpeeds(innerSpd, outerSpd); 
   rgbLeds.setColor(1, 0, 150, 150);
   rgbLeds.setColor(2, 0, 50, 50);
   rgbLeds.show();
 }
+
 void curveRight() { 
-  setMotorSpeeds(currentSpeedCap, currentSpeedCap / 3); 
+  int outerSpd = getCurveOuterSpeed();
+  int innerSpd = getCurveInnerSpeed();
+  setMotorSpeeds(outerSpd, innerSpd); 
   rgbLeds.setColor(1, 0, 50, 50);
   rgbLeds.setColor(2, 0, 150, 150);
   rgbLeds.show();
 }
 
-// "Turn around" - pivot ~180 degrees. Duration is a starting estimate;
-
-const unsigned long ROTATE_180_MS = 650; // should tune this
+// "Turn around" - pivot ~180 degrees
 void rotate180() {
-  setMotorSpeeds(-currentSpeedCap, currentSpeedCap); // start pivoting
+  int spd = getRotate180Speed();
+  setMotorSpeeds(-spd, spd); // start pivoting
   setLeds(150, 150, 0); // Yellow
 
   delay(ROTATE_180_MS);
@@ -126,10 +204,10 @@ void rotate180() {
 // Extra "special functionality": quick side-to-side wiggle, e.g. after a goal
 void celebrate() {
   for (int i = 0; i < 2; i++) {
-    setMotorSpeeds(-80, 80);
+    setMotorSpeeds(-CELEBRATE_SPEED, CELEBRATE_SPEED);
     setLeds(150, 0, 0);
     delay(150);
-    setMotorSpeeds(80, -80);
+    setMotorSpeeds(CELEBRATE_SPEED, -CELEBRATE_SPEED);
     setLeds(0, 150, 0);
     delay(150);
   }
