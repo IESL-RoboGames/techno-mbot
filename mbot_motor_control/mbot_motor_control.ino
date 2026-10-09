@@ -1,6 +1,7 @@
 #include <MeMCore.h>
+#include <EEPROM.h>
 
-// Motor objects: shoul adjust ports accordingly
+// Motor objects: adjust ports accordingly
 MeDCMotor leftMotor(M1);
 MeDCMotor rightMotor(M2);
 
@@ -16,84 +17,136 @@ MeBuzzer buzzer;
 Servo kickerServo;
 const int SERVO_PIN = 9;
 const int SERVO_REST_ANGLE = 0;      // Rest / retracted position (degrees)
-const int SERVO_KICK_ANGLE = 90;     // Kick / extended strike position (degrees)
+int kickAngle = 90;                  // Kick / extended strike position (degrees) - calibratable!
 const int SERVO_KICK_DELAY_MS = 250; // Milliseconds to hold extended position during kick
+
 // =============================================================================
-// ⚙️ SPEED & POWER CONFIGURATION INTERFACE (CHANGE ALL SPEEDS HERE)
+// ⚙️ SPEED & POWER CONFIGURATION INTERFACE (CALIBRATABLE AT RUNTIME)
 // =============================================================================
 // Note: mBot DC motor speed ranges from 0 (stopped) to 255 (100% full battery power).
 const int FULL_POWER = 255;
 
 // --- MASTER OVERRIDE ---
 // Set to true to force ALL functions to run at 100% Full Power (255) at once.
-// Set to false to use the individual function settings below.
+// Set to false to use individual calibrated speeds below.
 const bool ALL_FULL_POWER = false;
 
-// --- INDIVIDUAL FUNCTION SETTINGS ---
-// For each function, set *_FULL_POWER to true for 255, or false to use the specific speed.
-
-// 1. Forward ('w', 'F')
-const bool FORWARD_FULL_POWER    = true; // true = 255 (Full Power), false = use FORWARD_SPEED
-const int  FORWARD_SPEED         = 150;   // Specific speed (0 to 255)
-
-// 2. Backward ('s', 'B')
-const bool BACKWARD_FULL_POWER   = true; // true = 255 (Full Power), false = use BACKWARD_SPEED
-const int  BACKWARD_SPEED        = 130;   // Specific speed (0 to 255)
-
-// 3. In-Place Pivot Turn ('a', 'd', 'L', 'R')
-const bool TURN_FULL_POWER       = false; // true = 255 (Full Power), false = use TURN_SPEED
-const int  TURN_SPEED            = 98;   // Specific speed (0 to 255)
-
-// 4. Curve / Arc Turn ('q', 'e', 'G', 'I')
-const bool CURVE_FULL_POWER      = true; // true = outer wheel at 255, false = use CURVE_SPEED
-const int  CURVE_SPEED           = 150;   // Outer wheel speed (0 to 255)
-const int  CURVE_INNER_RATIO     = 50;    // Inner wheel % of outer wheel (e.g. 50 = half speed, 70 = wider/gentler arc)
-
-// 5. 180-Degree Turn-Around Spin ('x')
-const bool ROTATE180_FULL_POWER  = false; // true = 255 (Full Power), false = use ROTATE180_SPEED
-const int  ROTATE180_SPEED       = 150;   // Specific speed (0 to 255)
-const unsigned long ROTATE_180_MS = 650;  // Milliseconds to spin for 180 degrees
-
-// 6. Celebration Wiggle ('c')
-const int  CELEBRATE_SPEED       = 100;   // Speed during victory wiggle (0 to 255)
+// --- CALIBRATABLE ROBOT PARAMETERS (Saved to EEPROM) ---
+int forwardSpeed     = 150;  // Forward speed (30 to 255)
+int backwardSpeed    = 130;  // Backward speed (30 to 255)
+int turnSpeed        = 98;   // In-place pivot speed (30 to 255)
+int curveSpeed       = 150;  // Arc turn outer wheel speed (30 to 255)
+int curveInnerRatio  = 50;   // Inner wheel % of outer wheel (10 to 95)
+int motorTrim        = 0;    // Steering trim balance (-50 to +50: + corrects left pull, - corrects right pull)
+unsigned long rotate180Ms = 650; // Duration for 180° turnaround spin (ms)
+int celebrateSpeed   = 100;  // Victory wiggle speed (0 to 255)
 
 // --- MOTOR ACCELERATION RAMPING ---
 const int RAMP_STEP  = 15; // Speed change per ramp step (bigger = snappier, e.g. 255 = instant)
 const int RAMP_DELAY = 20; // Milliseconds to wait between each ramp step
 
 // --- RUNTIME SPEED LIMITER (+ / - keys) ---
-// If true, pressing '+' and '-' in serial/Bluetooth caps all speeds to currentSpeedCap.
-// If false, each function runs strictly at its configured speed above.
-const bool ENABLE_RUNTIME_SPEED_CAP = false;
-const int  MAX_SPEED                = 255;
-const int  SPEED_STEP               = 20;
-int        currentSpeedCap          = 255;
+bool ENABLE_RUNTIME_SPEED_CAP = true;
+const int  MAX_SPEED          = 255;
+const int  SPEED_STEP         = 15;
+int        currentSpeedCap    = 255;
+
+// =============================================================================
+// 💾 EEPROM PERSISTENT STORAGE
+// =============================================================================
+const uint16_t EEPROM_MAGIC = 0x4D42; // "MB" (mBot identifier)
+const int EEPROM_START_ADDR = 0;
+
+struct RobotConfig {
+  uint16_t magic;
+  int forwardSpeed;
+  int backwardSpeed;
+  int turnSpeed;
+  int curveOuterSpeed;
+  int curveInnerRatio;
+  int motorTrim;
+  unsigned long rotate180Ms;
+  int kickAngle;
+  int speedCap;
+};
+
+void saveConfigToEEPROM() {
+  RobotConfig cfg;
+  cfg.magic           = EEPROM_MAGIC;
+  cfg.forwardSpeed    = forwardSpeed;
+  cfg.backwardSpeed   = backwardSpeed;
+  cfg.turnSpeed       = turnSpeed;
+  cfg.curveOuterSpeed = curveSpeed;
+  cfg.curveInnerRatio = curveInnerRatio;
+  cfg.motorTrim       = motorTrim;
+  cfg.rotate180Ms     = rotate180Ms;
+  cfg.kickAngle       = kickAngle;
+  cfg.speedCap        = currentSpeedCap;
+  EEPROM.put(EEPROM_START_ADDR, cfg);
+
+  // Sound confirmation: double rising chirp
+  buzzer.tone(1400, 70); delay(80);
+  buzzer.tone(2000, 100); delay(100);
+  buzzer.noTone();
+}
+
+void loadConfigFromEEPROM() {
+  RobotConfig cfg;
+  EEPROM.get(EEPROM_START_ADDR, cfg);
+  if (cfg.magic == EEPROM_MAGIC) {
+    forwardSpeed    = constrain(cfg.forwardSpeed, 30, 255);
+    backwardSpeed   = constrain(cfg.backwardSpeed, 30, 255);
+    turnSpeed       = constrain(cfg.turnSpeed, 30, 255);
+    curveSpeed      = constrain(cfg.curveOuterSpeed, 30, 255);
+    curveInnerRatio = constrain(cfg.curveInnerRatio, 10, 95);
+    motorTrim       = constrain(cfg.motorTrim, -50, 50);
+    rotate180Ms     = constrain(cfg.rotate180Ms, 100, 3000);
+    kickAngle       = constrain(cfg.kickAngle, 20, 180);
+    currentSpeedCap = constrain(cfg.speedCap, 30, 255);
+    Serial.println(F("[EEPROM] Restored saved calibration parameters."));
+  } else {
+    Serial.println(F("[EEPROM] No saved calibration found. Using defaults."));
+  }
+}
+
+void resetConfigToDefaults() {
+  forwardSpeed    = 150;
+  backwardSpeed   = 130;
+  turnSpeed       = 98;
+  curveSpeed      = 150;
+  curveInnerRatio = 50;
+  motorTrim       = 0;
+  rotate180Ms     = 650;
+  kickAngle       = 90;
+  currentSpeedCap = 255;
+  saveConfigToEEPROM();
+}
 
 // =============================================================================
 // Helper functions to resolve final speeds
 // =============================================================================
 inline int getForwardSpeed() {
-  return (ALL_FULL_POWER || FORWARD_FULL_POWER) ? FULL_POWER : FORWARD_SPEED;
+  return ALL_FULL_POWER ? FULL_POWER : forwardSpeed;
 }
 
 inline int getBackwardSpeed() {
-  return (ALL_FULL_POWER || BACKWARD_FULL_POWER) ? FULL_POWER : BACKWARD_SPEED;
+  return ALL_FULL_POWER ? FULL_POWER : backwardSpeed;
 }
 
 inline int getTurnSpeed() {
-  return (ALL_FULL_POWER || TURN_FULL_POWER) ? FULL_POWER : TURN_SPEED;
+  return ALL_FULL_POWER ? FULL_POWER : turnSpeed;
 }
 
 inline int getCurveOuterSpeed() {
-  return (ALL_FULL_POWER || CURVE_FULL_POWER) ? FULL_POWER : CURVE_SPEED;
+  return ALL_FULL_POWER ? FULL_POWER : curveSpeed;
 }
 
 inline int getCurveInnerSpeed() {
-  return (getCurveOuterSpeed() * constrain(CURVE_INNER_RATIO, 0, 100)) / 100;
+  return (getCurveOuterSpeed() * constrain(curveInnerRatio, 0, 100)) / 100;
 }
 
 inline int getRotate180Speed() {
-  return (ALL_FULL_POWER || ROTATE180_FULL_POWER) ? FULL_POWER : ROTATE180_SPEED;
+  return ALL_FULL_POWER ? FULL_POWER : 150;
 }
 
 // Safety: smooth acceleration / deceleration tracking
@@ -112,8 +165,19 @@ int stepToward(int current, int target, int step) {
   return current;
 }
 
-// Ramp both motors smoothly toward target speeds
+// Ramp both motors smoothly toward target speeds with motorTrim compensation
 void setMotorSpeeds(int targetLeft, int targetRight) {
+  // Apply steering balance trim to compensate for motor differences
+  // Positive motorTrim: slows left / boosts right (fixes pulling left)
+  // Negative motorTrim: slows right / boosts left (fixes pulling right)
+  if (motorTrim != 0) {
+    if (targetLeft > 0)       targetLeft = constrain(targetLeft - motorTrim, 0, FULL_POWER);
+    else if (targetLeft < 0)  targetLeft = constrain(targetLeft + motorTrim, -FULL_POWER, 0);
+
+    if (targetRight > 0)      targetRight = constrain(targetRight + motorTrim, 0, FULL_POWER);
+    else if (targetRight < 0) targetRight = constrain(targetRight - motorTrim, -FULL_POWER, 0);
+  }
+
   // Clamp targets to safety limit (-255 to 255, or currentSpeedCap if runtime cap is enabled)
   int cap = ENABLE_RUNTIME_SPEED_CAP ? currentSpeedCap : FULL_POWER;
   targetLeft = constrain(targetLeft, -cap, cap);
@@ -172,7 +236,7 @@ void turnRight() {
   rgbLeds.show();
 }
 
-// Gentle arc turn: moves forward while curving slightly in the target direction
+// Gentle forward arc turns: moves forward while curving in target direction
 void curveLeft() { 
   int outerSpd = getCurveOuterSpeed();
   int innerSpd = getCurveInnerSpeed();
@@ -191,23 +255,42 @@ void curveRight() {
   rgbLeds.show();
 }
 
+// Gentle backward arc turns: moves backward while curving in target direction
+void curveBackLeft() { 
+  int outerSpd = getCurveOuterSpeed();
+  int innerSpd = getCurveInnerSpeed();
+  setMotorSpeeds(-innerSpd, -outerSpd); 
+  rgbLeds.setColor(1, 150, 0, 50);
+  rgbLeds.setColor(2, 50, 0, 0);
+  rgbLeds.show();
+}
+
+void curveBackRight() { 
+  int outerSpd = getCurveOuterSpeed();
+  int innerSpd = getCurveInnerSpeed();
+  setMotorSpeeds(-outerSpd, -innerSpd); 
+  rgbLeds.setColor(1, 50, 0, 0);
+  rgbLeds.setColor(2, 150, 0, 50);
+  rgbLeds.show();
+}
+
 // "Turn around" - pivot ~180 degrees
 void rotate180() {
   int spd = getRotate180Speed();
   setMotorSpeeds(-spd, spd); // start pivoting
   setLeds(150, 150, 0); // Yellow
 
-  delay(ROTATE_180_MS);
+  delay(rotate180Ms);
   stopRobot();
 }
 
 // Extra "special functionality": quick side-to-side wiggle, e.g. after a goal
 void celebrate() {
   for (int i = 0; i < 2; i++) {
-    setMotorSpeeds(-CELEBRATE_SPEED, CELEBRATE_SPEED);
+    setMotorSpeeds(-celebrateSpeed, celebrateSpeed);
     setLeds(150, 0, 0);
     delay(150);
-    setMotorSpeeds(CELEBRATE_SPEED, -CELEBRATE_SPEED);
+    setMotorSpeeds(celebrateSpeed, -celebrateSpeed);
     setLeds(0, 150, 0);
     delay(150);
   }
@@ -235,7 +318,7 @@ void kick() {
 
   setLeds(150, 150, 0); // Yellow indicator while kicking
   buzzer.tone(1500, 150);
-  setServoAngle(SERVO_KICK_ANGLE);
+  setServoAngle(kickAngle);
   delay(SERVO_KICK_DELAY_MS);
   setServoAngle(SERVO_REST_ANGLE);
   delay(150); // Give time for servo arm to retract
@@ -249,7 +332,135 @@ void kick() {
   lastCommandTime = millis();
 }
 
-// SERIAL TEST HARNESS - stand-in for gesture/Bluetooth input for now
+// =============================================================================
+// 🎛️ CALIBRATION ENGINE (RUNTIME KEY / SERIAL CALIBRATION)
+// =============================================================================
+
+void printCalibration() {
+  Serial.println(F("\n=================================="));
+  Serial.println(F("🤖 mBot Football Calibration"));
+  Serial.println(F("=================================="));
+  Serial.print(F(" [W] Forward Speed:    ")); Serial.println(forwardSpeed);
+  Serial.print(F(" [S] Backward Speed:   ")); Serial.println(backwardSpeed);
+  Serial.print(F(" [A] Turn Speed:       ")); Serial.println(turnSpeed);
+  Serial.print(F(" [Q] Curve Ratio:      ")); Serial.print(curveInnerRatio); Serial.println(F("%"));
+  Serial.print(F(" [O] Curve Outer Spd:  ")); Serial.println(curveSpeed);
+  Serial.print(F(" [T] Motor Trim (L/R): ")); Serial.println(motorTrim);
+  Serial.print(F(" [X] 180 Spin Time:    ")); Serial.print(rotate180Ms); Serial.println(F(" ms"));
+  Serial.print(F(" [K] Kick Angle:       ")); Serial.print(kickAngle); Serial.println(F(" deg"));
+  Serial.print(F(" [+] Speed Cap:        ")); Serial.println(currentSpeedCap);
+  Serial.println(F(" Commands: #SAVE to store in EEPROM, #RESET for defaults"));
+  Serial.println(F("=================================="));
+}
+
+void beepHigh() {
+  buzzer.tone(1500, 70);
+  delay(70);
+  buzzer.noTone();
+}
+
+void beepLow() {
+  buzzer.tone(800, 70);
+  delay(70);
+  buzzer.noTone();
+}
+
+void processCalibrationCommand(const char* cmd) {
+  if (cmd == NULL || strlen(cmd) == 0) return;
+
+  if (strcmp(cmd, "?") == 0 || strcmp(cmd, "STATUS") == 0) {
+    printCalibration();
+    return;
+  }
+  if (strcasecmp(cmd, "SAVE") == 0) {
+    saveConfigToEEPROM();
+    Serial.println(F("[CAL] Saved configuration to EEPROM!"));
+    return;
+  }
+  if (strcasecmp(cmd, "RESET") == 0) {
+    resetConfigToDefaults();
+    Serial.println(F("[CAL] Reset all parameters to factory defaults!"));
+    return;
+  }
+
+  char key = toupper(cmd[0]);
+  char op  = cmd[1];
+
+  // Direct value assignment support: e.g. "W:180", "T:5"
+  if (op == ':') {
+    int val = atoi(&cmd[2]);
+    switch (key) {
+      case 'W': forwardSpeed = constrain(val, 30, 255); break;
+      case 'S': backwardSpeed = constrain(val, 30, 255); break;
+      case 'A':
+      case 'D': turnSpeed = constrain(val, 30, 255); break;
+      case 'Q':
+      case 'E': curveInnerRatio = constrain(val, 10, 95); break;
+      case 'O': curveSpeed = constrain(val, 30, 255); break;
+      case 'T': motorTrim = constrain(val, -50, 50); break;
+      case 'X': rotate180Ms = constrain(val, 100, 3000); break;
+      case 'K': kickAngle = constrain(val, 20, 180); break;
+      case 'C': currentSpeedCap = constrain(val, 30, 255); break;
+      default: return;
+    }
+    beepHigh();
+    Serial.print(F("[CAL] Set ")); Serial.print(key); Serial.print(F(" to ")); Serial.println(val);
+    return;
+  }
+
+  // Step adjustments: '+' or '-'
+  if (op == '+' || op == '-') {
+    bool isPlus = (op == '+');
+    switch (key) {
+      case 'W':
+        forwardSpeed = constrain(forwardSpeed + (isPlus ? 10 : -10), 30, 255);
+        Serial.print(F("[CAL] Forward Speed: ")); Serial.println(forwardSpeed);
+        break;
+      case 'S':
+        backwardSpeed = constrain(backwardSpeed + (isPlus ? 10 : -10), 30, 255);
+        Serial.print(F("[CAL] Backward Speed: ")); Serial.println(backwardSpeed);
+        break;
+      case 'A':
+      case 'D':
+        turnSpeed = constrain(turnSpeed + (isPlus ? 5 : -5), 30, 255);
+        Serial.print(F("[CAL] Turn Speed: ")); Serial.println(turnSpeed);
+        break;
+      case 'Q':
+      case 'E':
+        curveInnerRatio = constrain(curveInnerRatio + (isPlus ? 5 : -5), 10, 95);
+        Serial.print(F("[CAL] Curve Inner %: ")); Serial.print(curveInnerRatio); Serial.println(F("%"));
+        break;
+      case 'O':
+        curveSpeed = constrain(curveSpeed + (isPlus ? 10 : -10), 30, 255);
+        Serial.print(F("[CAL] Curve Outer Speed: ")); Serial.println(curveSpeed);
+        break;
+      case 'T':
+        motorTrim = constrain(motorTrim + (isPlus ? 2 : -2), -50, 50);
+        Serial.print(F("[CAL] Motor Trim: ")); Serial.println(motorTrim);
+        break;
+      case 'X':
+        rotate180Ms = constrain(rotate180Ms + (isPlus ? 25 : -25), 100, 3000);
+        Serial.print(F("[CAL] 180 Spin Time: ")); Serial.print(rotate180Ms); Serial.println(F(" ms"));
+        break;
+      case 'K':
+        kickAngle = constrain(kickAngle + (isPlus ? 5 : -5), 20, 180);
+        Serial.print(F("[CAL] Kick Angle: ")); Serial.println(kickAngle);
+        break;
+      case 'C':
+        currentSpeedCap = constrain(currentSpeedCap + (isPlus ? 15 : -15), 30, 255);
+        Serial.print(F("[CAL] Speed Cap: ")); Serial.println(currentSpeedCap);
+        break;
+      default:
+        return;
+    }
+    if (isPlus) beepHigh();
+    else beepLow();
+  }
+}
+
+// =============================================================================
+// COMMAND HANDLER & SERIAL PROTOCOL
+// =============================================================================
 
 void handleCommand(char c) {
   lastCommandTime = millis();
@@ -278,10 +489,19 @@ void handleCommand(char c) {
   case 'I': // Standard RC forward-right
     curveRight();
     break;
+  case 'z':
+  case 'H': // Standard RC backward-left
+    curveBackLeft();
+    break;
+  case 'c':
+  case 'J': // Standard RC backward-right
+    curveBackRight();
+    break;
   case 'x':
     rotate180();
     break;
-  case 'c':
+  case 'v':
+  case 'C': // Goal celebration wiggle (v for Victory)
     celebrate();
     break;
   case 'k':
@@ -291,7 +511,7 @@ void handleCommand(char c) {
     break;
   case 'o':
     // Calibration helper: open/deploy kicker
-    setServoAngle(SERVO_KICK_ANGLE);
+    setServoAngle(kickAngle);
     break;
   case 'p':
     // Calibration helper: reset/retract kicker
@@ -304,15 +524,13 @@ void handleCommand(char c) {
     break;
   case '+':
     currentSpeedCap = min(currentSpeedCap + SPEED_STEP, MAX_SPEED);
-    buzzer.tone(1200, 100);
-    delay(100);
-    buzzer.noTone();
+    beepHigh();
+    Serial.print(F("[CAL] Speed Cap: ")); Serial.println(currentSpeedCap);
     break;
   case '-':
     currentSpeedCap = max(currentSpeedCap - SPEED_STEP, 0);
-    buzzer.tone(800, 100);
-    delay(100);
-    buzzer.noTone();
+    beepLow();
+    Serial.print(F("[CAL] Speed Cap: ")); Serial.println(currentSpeedCap);
     break;
   default:
     break; // ignore newline/unrecognized characters
@@ -336,16 +554,42 @@ void setup() {
   kickerServo.attach(SERVO_PIN);
   resetServo();
 
-  Serial.println("mBot motor & servo control ready.");
-  Serial.println("w/s/a/d = move, q/e = curve, x = turn around, space = stop, "
-                 "c = celebrate, k = kick (servo), o/p = servo open/close, +/- = speed cap");
+  // Load persistent calibration from EEPROM if available
+  loadConfigFromEEPROM();
+
+  Serial.println(F("mBot motor & servo control ready."));
+  Serial.println(F("w/s/a/d = move, q/e = arc fwd, z/c = arc back, x = turn around, space = stop"));
+  Serial.println(F("v = celebrate, k = kick, o/p = servo open/close, +/- = speed cap"));
+  Serial.println(F("Calibration: Send #? for status, #SAVE to EEPROM, #RESET for defaults"));
   lastCommandTime = millis();
 }
 
+char cmdBuffer[16];
+uint8_t cmdIdx = 0;
+bool inCmdMode = false;
+
 void loop() {
-  if (Serial.available() > 0) {
+  while (Serial.available() > 0) {
     char c = Serial.read();
-    handleCommand(c);
+    if (inCmdMode) {
+      if (c == '\n' || c == '\r' || cmdIdx >= sizeof(cmdBuffer) - 1) {
+        cmdBuffer[cmdIdx] = '\0';
+        if (cmdIdx > 0) {
+          processCalibrationCommand(cmdBuffer);
+        }
+        inCmdMode = false;
+        cmdIdx = 0;
+      } else {
+        cmdBuffer[cmdIdx++] = c;
+      }
+    } else {
+      if (c == '#') {
+        inCmdMode = true;
+        cmdIdx = 0;
+      } else {
+        handleCommand(c);
+      }
+    }
   }
 
   // Communication failsafe:
@@ -358,3 +602,4 @@ void loop() {
   }
   */
 }
+

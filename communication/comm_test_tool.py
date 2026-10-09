@@ -88,80 +88,199 @@ def main():
     # Step 3: Interactive Command Control
     print("\n✅ CONNECTED! You are now transmitting to the mBot.")
     print("==================================================")
-    print("Controls:")
-    print("  w       : Move Forward (Green LEDs)")
-    print("  s       : Move Backward (Red LEDs)")
-    print("  a       : Turn Left (Left Blue LED)")
-    print("  d       : Turn Right (Right Blue LED)")
-    print("  k       : Kick / Shoot (Servo strike on A0 + Buzzer)")
-    print("  o / p   : Servo Calibration (o = Open/Deploy, p = Reset/Retract)")
-    print("  c       : Celebrate (Rainbow LED pattern)")
-    print("  [space] : Stop (LEDs Off)")
-    print("  + / -   : Speed Up / Down")
-    print("  exit    : Quit and disconnect")
+    print("🚗 Driving Controls (Hold key to move, release to stop):")
+    print("  w / s       : Move Forward / Backward")
+    print("  a / d       : Spin Left / Right in place")
+    print("  q / e       : Arc Forward-Left / Forward-Right (or hold W+A / W+D)")
+    print("  z / c       : Arc Backward-Left / Backward-Right (or hold S+A / S+D) [NEW]")
+    print("  [space]     : Stop immediately")
+    print("\n⚡ Action & Skill Controls:")
+    print("  k           : Kick / Strike ball (Servo on A0 + Buzzer)")
+    print("  v           : Victory celebration wiggle (Rainbow LEDs)")
+    print("  x           : 180° Turnaround spin")
+    print("  o / p       : Servo Test (o = Deploy 90°, p = Retract 0°)")
+    print("  + / -       : Master Speed Cap (+/- 15)")
+    print("\n🎛️ Live Calibration Controls (Tune parameters without re-uploading):")
+    print("  Ctrl + [+] + Key  (or Ctrl + Key) : Increase parameter")
+    print("  Ctrl + [-] + Key  (or Alt  + Key) : Decrease parameter")
+    print("    • 'w' : Forward Speed        • 's' : Backward Speed")
+    print("    • 'a' : Turn Speed           • 'q' : Curve Ratio (% inner)")
+    print("    • 't' : Motor Trim (Balance) • 'x' : 180 Spin Time")
+    print("    • 'k' : Kick Strike Angle    • 'o' : Curve Outer Speed")
+    print("  Ctrl + Enter     : Save calibration permanently to EEPROM")
+    print("  Ctrl + Backspace : Reset calibration to factory defaults")
+    print("  Tab / ?          : Query & display current calibration status")
+    print("  Esc              : Quit and disconnect")
     print("==================================================")
 
     import keyboard
-    
-    print("Hold 'w/s/a/d' to move. Release to stop.")
-    print("Press 'k' to kick, 'c' to celebrate, 'x' for 180°, 'o/p' for servo, '+/-' for speed.")
-    print("Press 'Esc' to exit.")
-    
-    CONTINUOUS_ACTIONS = {'w', 's', 'a', 'd', 'q', 'e'}
-    ONE_SHOT_ACTIONS = {'k', 'x', 'c', 'o', 'p', '+', '-'}
+
+    CONTINUOUS_ACTIONS = {'w', 's', 'a', 'd', 'q', 'e', 'z', 'c'}
+    ONE_SHOT_ACTIONS = {'k', 'x', 'v', 'o', 'p', '+', '-'}
+
+    CALIBRATION_MAP = {
+        'w': ('W', 'Forward Speed'),
+        's': ('S', 'Backward Speed'),
+        'a': ('A', 'Turn Speed'),
+        'd': ('A', 'Turn Speed'),
+        'q': ('Q', 'Curve Inner Ratio'),
+        'e': ('Q', 'Curve Inner Ratio'),
+        'o': ('O', 'Curve Outer Speed'),
+        't': ('T', 'Motor Trim Balance'),
+        'x': ('X', '180 Spin Time'),
+        'k': ('K', 'Kick Angle'),
+    }
 
     current_action = ' '
     held_one_shots = set()
-    
+    held_cal_keys = set()
+    last_cal_time = 0.0
+
     try:
         while True:
             if keyboard.is_pressed('esc'):
                 break
-                
+
+            now = time.time()
+
+            # Modifier states
+            is_ctrl = keyboard.is_pressed('ctrl') or keyboard.is_pressed('left ctrl') or keyboard.is_pressed('right ctrl')
+            is_alt = keyboard.is_pressed('alt') or keyboard.is_pressed('left alt') or keyboard.is_pressed('right alt')
+            is_shift = keyboard.is_pressed('shift') or keyboard.is_pressed('left shift') or keyboard.is_pressed('right shift')
+            is_plus = keyboard.is_pressed('+') or keyboard.is_pressed('=')
+            is_minus = keyboard.is_pressed('-')
+
+            # -----------------------------------------------------------------
+            # 1. LIVE CALIBRATION HANDLING (when Ctrl or Alt is held, or Tab/?)
+            # -----------------------------------------------------------------
+            if is_ctrl or is_alt:
+                # Stop robot immediately if it was driving when user pressed Ctrl/Alt
+                if current_action in CONTINUOUS_ACTIONS:
+                    bot.send_raw(' ')
+                    current_action = ' '
+
+                # Save / Reset shortcuts
+                if keyboard.is_pressed('enter'):
+                    if 'save' not in held_cal_keys:
+                        held_cal_keys.add('save')
+                        bot.calibrate_save()
+                        print("\n💾 [CAL] Saving calibration to mBot EEPROM...")
+                else:
+                    held_cal_keys.discard('save')
+
+                if keyboard.is_pressed('backspace'):
+                    if 'reset' not in held_cal_keys:
+                        held_cal_keys.add('reset')
+                        bot.calibrate_reset()
+                        print("\n🔄 [CAL] Resetting mBot calibration to defaults...")
+                else:
+                    held_cal_keys.discard('reset')
+
+                # Check calibratable parameter keys
+                for key_char, (cal_code, param_name) in CALIBRATION_MAP.items():
+                    if keyboard.is_pressed(key_char):
+                        if key_char not in held_cal_keys or (now - last_cal_time >= 0.25):
+                            held_cal_keys.add(key_char)
+                            last_cal_time = now
+
+                            # Determine increase vs decrease
+                            is_decrease = is_minus or is_alt or (is_ctrl and is_shift)
+                            op_name = "Decreasing" if is_decrease else "Increasing"
+                            bot.calibrate_adjust(cal_code, increase=not is_decrease)
+                            print(f"\n⚙️ [CAL] {op_name} {param_name} ({cal_code}{'-' if is_decrease else '+'})...")
+                    else:
+                        held_cal_keys.discard(key_char)
+
+                time.sleep(0.04)
+                continue
+
+            # Query status on Tab or '?'
+            if keyboard.is_pressed('tab') or keyboard.is_pressed('?'):
+                if 'query' not in held_cal_keys:
+                    held_cal_keys.add('query')
+                    bot.calibrate_query()
+                    print("\n📋 [CAL] Querying calibration status...")
+            else:
+                held_cal_keys.discard('query')
+
+            # -----------------------------------------------------------------
+            # 2. NORMAL DRIVING & ACTION HANDLING (no Ctrl / Alt pressed)
+            # -----------------------------------------------------------------
             new_action = ' '
-            if keyboard.is_pressed('w'): new_action = 'w'
-            elif keyboard.is_pressed('s'): new_action = 's'
-            elif keyboard.is_pressed('a'): new_action = 'a'
-            elif keyboard.is_pressed('d'): new_action = 'd'
-            elif keyboard.is_pressed('q'): new_action = 'q'
-            elif keyboard.is_pressed('e'): new_action = 'e'
-            elif keyboard.is_pressed('x'): new_action = 'x'
-            elif keyboard.is_pressed('c'): new_action = 'c'
-            elif keyboard.is_pressed('k'): new_action = 'k'
-            elif keyboard.is_pressed('o'): new_action = 'o'
-            elif keyboard.is_pressed('p'): new_action = 'p'
-            elif keyboard.is_pressed('+'): new_action = '+'
-            elif keyboard.is_pressed('-'): new_action = '-'
+
+            # Check dual-key combos first for natural steering
+            is_w = keyboard.is_pressed('w')
+            is_s = keyboard.is_pressed('s')
+            is_a = keyboard.is_pressed('a')
+            is_d = keyboard.is_pressed('d')
+
+            if is_w and is_a:
+                new_action = 'q'  # Arc Forward-Left
+            elif is_w and is_d:
+                new_action = 'e'  # Arc Forward-Right
+            elif is_s and is_a:
+                new_action = 'z'  # Arc Backward-Left
+            elif is_s and is_d:
+                new_action = 'c'  # Arc Backward-Right
+            elif is_w:
+                new_action = 'w'  # Forward
+            elif is_s:
+                new_action = 's'  # Backward
+            elif is_a:
+                new_action = 'a'  # Spin Left
+            elif is_d:
+                new_action = 'd'  # Spin Right
+            elif keyboard.is_pressed('q'):
+                new_action = 'q'  # Dedicated Curve Left
+            elif keyboard.is_pressed('e'):
+                new_action = 'e'  # Dedicated Curve Right
+            elif keyboard.is_pressed('z'):
+                new_action = 'z'  # Dedicated Curve Back-Left
+            elif keyboard.is_pressed('c'):
+                new_action = 'c'  # Dedicated Curve Back-Right
+            elif keyboard.is_pressed('x'):
+                new_action = 'x'  # 180° Spin
+            elif keyboard.is_pressed('v'):
+                new_action = 'v'  # Celebrate Wiggle
+            elif keyboard.is_pressed('k'):
+                new_action = 'k'  # Kick
+            elif keyboard.is_pressed('o'):
+                new_action = 'o'  # Deploy servo
+            elif keyboard.is_pressed('p'):
+                new_action = 'p'  # Reset servo
+            elif is_plus:
+                new_action = '+'
+            elif is_minus:
+                new_action = '-'
 
             # Release any one-shot keys that are no longer pressed
             for action in list(held_one_shots):
                 if not keyboard.is_pressed(action):
                     held_one_shots.remove(action)
-            
+
+            # Continuous motion commands
             if new_action in CONTINUOUS_ACTIONS:
                 bot.send_raw(new_action)
                 if current_action != new_action:
                     print(f"-> Started: '{new_action}'")
                 current_action = new_action
 
+            # One-shot commands (fire once per keypress)
             elif new_action in ONE_SHOT_ACTIONS:
-                # Only fire once when first pressed. Holding the key down will NOT repeat.
                 if new_action not in held_one_shots:
                     held_one_shots.add(new_action)
                     bot.send_raw(new_action)
                     print(f"-> Started: '{new_action}'")
-                # Do not change current_action to a continuous driving state
 
             else:
                 # Key released (new_action == ' ')
-                # Only send stop if we were previously moving
                 if current_action in CONTINUOUS_ACTIONS:
                     bot.send_raw(' ')
                     print("-> Stopped (key released)")
                 current_action = ' '
-                    
-            time.sleep(0.05)  # Responsive 50ms polling loop
-            
+
+            time.sleep(0.04)  # Responsive 40ms polling loop
+
     except KeyboardInterrupt:
         print("\nExiting...")
     finally:
@@ -170,3 +289,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
