@@ -175,10 +175,10 @@ void setMotorSpeeds(int targetLeft, int targetRight) {
   // Proportional attenuation scales down the faster wheel so that BOTH wheels
   // rotate at the exact same physical speed across all power levels (including 255 max power).
   if (motorTrim > 0) {
-    // Robot veers LEFT -> Left motor is spinning faster -> scale down Left speed by motorTrim %
+    // Robot veers RIGHT -> Left motor rotates faster -> scale down Left speed by motorTrim %
     targetLeft = (long)targetLeft * (100 - motorTrim) / 100;
   } else if (motorTrim < 0) {
-    // Robot veers RIGHT -> Right motor is spinning faster -> scale down Right speed by |motorTrim| %
+    // Robot veers LEFT -> Right motor rotates faster -> scale down Right speed by |motorTrim| %
     targetRight = (long)targetRight * (100 - abs(motorTrim)) / 100;
   }
 
@@ -186,6 +186,24 @@ void setMotorSpeeds(int targetLeft, int targetRight) {
   int cap = ENABLE_RUNTIME_SPEED_CAP ? currentSpeedCap : FULL_POWER;
   targetLeft = constrain(targetLeft, -cap, cap);
   targetRight = constrain(targetRight, -cap, cap);
+
+  // Print telemetry to terminal when motor speeds change
+  if (targetLeft != currentLeftSpeed || targetRight != currentRightSpeed) {
+    if (targetLeft != 0 || targetRight != 0) {
+      Serial.print(F("[MOTORS] Commanded PWM -> Left: "));
+      Serial.print(targetLeft);
+      Serial.print(F(" | Right: "));
+      Serial.print(targetRight);
+      if (motorTrim != 0) {
+        Serial.print(F(" (Trim: "));
+        Serial.print(motorTrim);
+        Serial.print(F("%)"));
+      } else {
+        Serial.print(F(" (Identical Power 50/50)"));
+      }
+      Serial.println();
+    }
+  }
 
   // Ramp both motors together, one step at a time, until both reach target
   while (currentLeftSpeed != targetLeft || currentRightSpeed != targetRight) {
@@ -391,11 +409,11 @@ void processCalibrationCommand(const char* cmd) {
     delay(2000);
     stopRobot();
     beepLow();
-    Serial.println(F("[CAL] Test drive complete! Observe trajectory:"));
+    Serial.println(F("[CAL] Test drive complete! Observe floor trajectory:"));
     Serial.print(F("Current Trim: ")); Serial.print(motorTrim); Serial.println(F("%"));
-    Serial.println(F(" • If robot drifted LEFT  (Left wheel faster)  -> Send #T+ (e.g. #T+ or #T:6)"));
-    Serial.println(F(" • If robot drifted RIGHT (Right wheel faster) -> Send #T- (e.g. #T- or #T:-6)"));
-    Serial.println(F(" • When driving straight                     -> Send #SAVE to store in EEPROM"));
+    Serial.println(F(" • If robot veered RIGHT (Left wheel rotates faster)  -> Send #T+ to slow Left"));
+    Serial.println(F(" • If robot veered LEFT  (Right wheel rotates faster) -> Send #T- to slow Right"));
+    Serial.println(F(" • If robot drove STRAIGHT (Both wheels equal speed)   -> Send #SAVE to store in EEPROM"));
     return;
   }
   if (strcasecmp(cmd, "SAVE") == 0) {
