@@ -89,19 +89,21 @@ You can calibrate motor speeds, steering balance (motor trim), 180° turn durati
 | **`a` / `d`** | Turn Speed | 30 – 255 | 5 | In-place pivot rotation speed |
 | **`q` / `e`** | Curve Inner Ratio | 10% – 95% | 5% | Arc sharpness (inner wheel % of outer wheel) |
 | **`o`** | Curve Outer Speed | 30 – 255 | 10 | Base speed while arcing |
-| **`t`** | Motor Trim (Balance) | -50 to +50 | 2 | **Steering balance:** + corrects left pull, - corrects right pull |
+| **`t`** | Motor Trim (Balance) | -50% to +50% | 2% | **Proportional Wheel Balance:** + slows left motor %, - slows right motor % |
 | **`x`** | 180 Spin Time | 100 – 3000 ms | 25 ms | Exact spin duration for a true 180° turnaround |
 | **`k`** | Kick Servo Angle | 20° – 180° | 5° | Servo strike extension angle |
 | **`c`** | Master Speed Cap | 30 – 255 | 15 | Global speed limit cap |
 
 ### Direct Serial / Bluetooth Calibration Commands:
 Commands start with `#` followed by a parameter key and `+` / `-`, or direct numeric assignment:
-- `#W+` / `#W-` : Adjust forward speed
-- `#T+` / `#T-` : Adjust motor trim
-- `#W:180`      : Set forward speed directly to 180
-- `#?`          : Print complete calibration table
-- `#SAVE`       : Save current settings to EEPROM
-- `#RESET`      : Restore factory default settings
+- `#TEST`      : Run a 2-second straight-line test drive to observe wheel balance
+- `#T+` / `#T-`: Adjust motor trim by +/- 2%
+- `#T:10`      : Set motor trim directly (e.g. 10% attenuation on faster motor)
+- `#W+` / `#W-`: Adjust forward speed
+- `#W:180`     : Set forward speed directly to 180
+- `#?`         : Print complete calibration table
+- `#SAVE`      : Save current settings to EEPROM
+- `#RESET`     : Restore factory default settings
 
 ---
 

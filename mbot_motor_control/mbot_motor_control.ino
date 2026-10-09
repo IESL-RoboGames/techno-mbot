@@ -37,7 +37,10 @@ int backwardSpeed    = 130;  // Backward speed (30 to 255)
 int turnSpeed        = 98;   // In-place pivot speed (30 to 255)
 int curveSpeed       = 150;  // Arc turn outer wheel speed (30 to 255)
 int curveInnerRatio  = 50;   // Inner wheel % of outer wheel (10 to 95)
-int motorTrim        = 0;    // Steering trim balance (-50 to +50: + corrects left pull, - corrects right pull)
+int motorTrim        = 0;    // Motor speed balance trim (-50% to +50%):
+                             //   0  = Both motors receive equal power
+                             //  >0  = Left motor is faster -> slows Left by motorTrim %
+                             //  <0  = Right motor is faster -> slows Right by |motorTrim| %
 unsigned long rotate180Ms = 650; // Duration for 180° turnaround spin (ms)
 int celebrateSpeed   = 100;  // Victory wiggle speed (0 to 255)
 
@@ -167,15 +170,16 @@ int stepToward(int current, int target, int step) {
 
 // Ramp both motors smoothly toward target speeds with motorTrim compensation
 void setMotorSpeeds(int targetLeft, int targetRight) {
-  // Apply steering balance trim to compensate for motor differences
-  // Positive motorTrim: slows left / boosts right (fixes pulling left)
-  // Negative motorTrim: slows right / boosts left (fixes pulling right)
-  if (motorTrim != 0) {
-    if (targetLeft > 0)       targetLeft = constrain(targetLeft - motorTrim, 0, FULL_POWER);
-    else if (targetLeft < 0)  targetLeft = constrain(targetLeft + motorTrim, -FULL_POWER, 0);
-
-    if (targetRight > 0)      targetRight = constrain(targetRight + motorTrim, 0, FULL_POWER);
-    else if (targetRight < 0) targetRight = constrain(targetRight - motorTrim, -FULL_POWER, 0);
+  // Apply proportional motor speed balance trim (-50% to +50%)
+  // Real-world brushed DC motors have mechanical and electrical variances.
+  // Proportional attenuation scales down the faster wheel so that BOTH wheels
+  // rotate at the exact same physical speed across all power levels (including 255 max power).
+  if (motorTrim > 0) {
+    // Robot veers LEFT -> Left motor is spinning faster -> scale down Left speed by motorTrim %
+    targetLeft = (long)targetLeft * (100 - motorTrim) / 100;
+  } else if (motorTrim < 0) {
+    // Robot veers RIGHT -> Right motor is spinning faster -> scale down Right speed by |motorTrim| %
+    targetRight = (long)targetRight * (100 - abs(motorTrim)) / 100;
   }
 
   // Clamp targets to safety limit (-255 to 255, or currentSpeedCap if runtime cap is enabled)
@@ -345,11 +349,18 @@ void printCalibration() {
   Serial.print(F(" [A] Turn Speed:       ")); Serial.println(turnSpeed);
   Serial.print(F(" [Q] Curve Ratio:      ")); Serial.print(curveInnerRatio); Serial.println(F("%"));
   Serial.print(F(" [O] Curve Outer Spd:  ")); Serial.println(curveSpeed);
-  Serial.print(F(" [T] Motor Trim (L/R): ")); Serial.println(motorTrim);
+  Serial.print(F(" [T] Motor Trim (Balance): ")); Serial.print(motorTrim);
+  if (motorTrim > 0) {
+    Serial.print(F("% (Left reduced by ")); Serial.print(motorTrim); Serial.println(F("%)"));
+  } else if (motorTrim < 0) {
+    Serial.print(F("% (Right reduced by ")); Serial.print(abs(motorTrim)); Serial.println(F("%)"));
+  } else {
+    Serial.println(F("% (50/50 equal power)"));
+  }
   Serial.print(F(" [X] 180 Spin Time:    ")); Serial.print(rotate180Ms); Serial.println(F(" ms"));
   Serial.print(F(" [K] Kick Angle:       ")); Serial.print(kickAngle); Serial.println(F(" deg"));
   Serial.print(F(" [+] Speed Cap:        ")); Serial.println(currentSpeedCap);
-  Serial.println(F(" Commands: #SAVE to store in EEPROM, #RESET for defaults"));
+  Serial.println(F(" Commands: #TEST (2s test drive), #SAVE (to EEPROM), #RESET (defaults)"));
   Serial.println(F("=================================="));
 }
 
@@ -370,6 +381,21 @@ void processCalibrationCommand(const char* cmd) {
 
   if (strcmp(cmd, "?") == 0 || strcmp(cmd, "STATUS") == 0) {
     printCalibration();
+    return;
+  }
+  if (strcasecmp(cmd, "TEST") == 0) {
+    Serial.println(F("[CAL] Running 2-second straight-line test drive..."));
+    beepHigh();
+    delay(400);
+    moveForward();
+    delay(2000);
+    stopRobot();
+    beepLow();
+    Serial.println(F("[CAL] Test drive complete! Observe trajectory:"));
+    Serial.print(F("Current Trim: ")); Serial.print(motorTrim); Serial.println(F("%"));
+    Serial.println(F(" • If robot drifted LEFT  (Left wheel faster)  -> Send #T+ (e.g. #T+ or #T:6)"));
+    Serial.println(F(" • If robot drifted RIGHT (Right wheel faster) -> Send #T- (e.g. #T- or #T:-6)"));
+    Serial.println(F(" • When driving straight                     -> Send #SAVE to store in EEPROM"));
     return;
   }
   if (strcasecmp(cmd, "SAVE") == 0) {
@@ -560,7 +586,7 @@ void setup() {
   Serial.println(F("mBot motor & servo control ready."));
   Serial.println(F("w/s/a/d = move, q/e = arc fwd, z/c = arc back, x = turn around, space = stop"));
   Serial.println(F("v = celebrate, k = kick, o/p = servo open/close, +/- = speed cap"));
-  Serial.println(F("Calibration: Send #? for status, #SAVE to EEPROM, #RESET for defaults"));
+  Serial.println(F("Calibration: Send #? for status, #TEST to test drive, #SAVE to EEPROM, #RESET for defaults"));
   lastCommandTime = millis();
 }
 

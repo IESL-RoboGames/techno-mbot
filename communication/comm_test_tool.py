@@ -107,6 +107,7 @@ def main():
     print("    • 'a' : Turn Speed           • 'q' : Curve Ratio (% inner)")
     print("    • 't' : Motor Trim (Balance) • 'x' : 180 Spin Time")
     print("    • 'k' : Kick Strike Angle    • 'o' : Curve Outer Speed")
+    print("  Ctrl + Space     : Run 2-second straight-line test drive (wheel balance test)")
     print("  Ctrl + Enter     : Save calibration permanently to EEPROM")
     print("  Ctrl + Backspace : Reset calibration to factory defaults")
     print("  Tab / ?          : Query & display current calibration status")
@@ -158,6 +159,15 @@ def main():
                 if current_action in CONTINUOUS_ACTIONS:
                     bot.send_raw(' ')
                     current_action = ' '
+
+                # Test drive shortcut (Ctrl + Space)
+                if keyboard.is_pressed('space'):
+                    if 'test' not in held_cal_keys:
+                        held_cal_keys.add('test')
+                        bot.calibrate_test_drive()
+                        print("\n🚗 [CAL] Running 2-second straight-line test drive on mBot...")
+                else:
+                    held_cal_keys.discard('test')
 
                 # Save / Reset shortcuts
                 if keyboard.is_pressed('enter'):

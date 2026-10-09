@@ -268,6 +268,10 @@ class MBotBluetooth:
         """Resets all configuration parameters to factory defaults and saves to EEPROM."""
         return self.send_calibration("RESET")
 
+    def calibrate_test_drive(self) -> bool:
+        """Runs a 2-second straight-line test drive on the mBot for wheel speed calibration."""
+        return self.send_calibration("TEST")
+
     def calibrate_query(self) -> bool:
         """Requests full calibration status table from the robot."""
         return self.send_calibration("?")
