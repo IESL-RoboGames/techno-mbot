@@ -171,7 +171,7 @@ class MBotBluetooth:
             time.sleep(0.02)
         return "".join(lines)
 
-    # --- High-Level Command API for CV Team ---
+    # --- High-Level Command API for CV / Gesture / App Teams ---
 
     def forward(self):
         """Drives robot forward."""
@@ -190,24 +190,33 @@ class MBotBluetooth:
         return self.send_raw('d')
 
     def curve_left(self):
-        """Arcs smoothly left (good for ball approach)."""
+        """Arcs smoothly forward-left (good for ball approach)."""
         return self.send_raw('q')
 
     def curve_right(self):
-        """Arcs smoothly right (good for ball approach)."""
+        """Arcs smoothly forward-right (good for ball approach)."""
         return self.send_raw('e')
+
+    def curve_back_left(self):
+        """Arcs smoothly backward-left."""
+        return self.send_raw('z')
+
+    def curve_back_right(self):
+        """Arcs smoothly backward-right."""
+        return self.send_raw('c')
 
     def turn_around(self):
         """Executes ~180 degree pivot."""
         return self.send_raw('x')
 
     def celebrate(self):
-        """Goal scored celebration wiggle."""
-        return self.send_raw('c')
+        """Goal scored celebration wiggle (sends 'v')."""
+        return self.send_raw('v')
 
     def kick(self):
         """Triggers kicker servo strike on pin A0."""
         return self.send_raw('k')
+
     def stop(self):
         """Stops both motors."""
         return self.send_raw(' ')
@@ -220,6 +229,49 @@ class MBotBluetooth:
         """Decreases speed cap."""
         return self.send_raw('-')
 
+    # --- Live Calibration API ---
+
+    def send_calibration(self, cmd: str) -> bool:
+        """
+        Sends a calibration command packet to the mBot (e.g. 'W+', 'S-', '?', 'SAVE', 'RESET').
+        Automatically prepends '#' and appends '\n'.
+        """
+        clean_cmd = cmd.strip().lstrip('#')
+        return self.send_raw(f"#{clean_cmd}\n")
+
+    def calibrate_adjust(self, param_key: str, increase: bool = True) -> bool:
+        """
+        Adjusts a calibration parameter up or down.
+        param_key:
+            'W' = Forward Speed (+/- 10)
+            'S' = Backward Speed (+/- 10)
+            'A' = Turn Speed (+/- 5)
+            'Q' = Curve Inner Ratio (+/- 5%)
+            'O' = Curve Outer Speed (+/- 10)
+            'T' = Motor Trim (+/- 2, adjusts straight-line balance)
+            'X' = 180 Spin Time (+/- 25ms)
+            'K' = Kick Servo Strike Angle (+/- 5 deg)
+            'C' = Master Speed Cap (+/- 15)
+        """
+        op = "+" if increase else "-"
+        return self.send_calibration(f"{param_key.upper()}{op}")
+
+    def calibrate_set(self, param_key: str, value: int) -> bool:
+        """Sets a parameter to a specific numeric value (e.g. W:180)."""
+        return self.send_calibration(f"{param_key.upper()}:{value}")
+
+    def calibrate_save(self) -> bool:
+        """Saves current configuration to Arduino EEPROM so it persists across reboots."""
+        return self.send_calibration("SAVE")
+
+    def calibrate_reset(self) -> bool:
+        """Resets all configuration parameters to factory defaults and saves to EEPROM."""
+        return self.send_calibration("RESET")
+
+    def calibrate_query(self) -> bool:
+        """Requests full calibration status table from the robot."""
+        return self.send_calibration("?")
+
     def disconnect(self):
         """Safely stops robot and closes Bluetooth port."""
         if self.is_connected():
@@ -228,3 +280,4 @@ class MBotBluetooth:
             self.ser.close()
             print("[COMM] Disconnected safely.")
         self.ser = None
+
