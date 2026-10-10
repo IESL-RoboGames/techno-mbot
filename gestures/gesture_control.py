@@ -5,7 +5,7 @@ Left Hand  -> Drive     (Open palm facing camera = forward, back of hand facing 
                          anything else = stop)
 Right Hand -> Turn      (Open hand tilted left/right -> discrete turn_left/turn_right/center)
 Right Hand -> Shoot     (Closed fist, thumb tucked -> one-shot trigger with cooldown)
-Both Hands -> Celebrate (Two closed fists held together -> one-shot trigger with cooldown)
+Both Hands -> Celebrate (Rock-on sign -- index + pinky up -- on both hands -> one-shot trigger with cooldown)
 
 Commands go to the robot through robot_bridge.py when a robot is connected;
 otherwise this runs detection-only.
@@ -46,7 +46,6 @@ SHOOT_WINDOW, SHOOT_NEED, SHOOT_RELEASE = 5, 3, 1
 SHOOT_COOLDOWN_SEC = 0.6       # minimum time between consecutive shots
 CELEBRATE_WINDOW, CELEBRATE_NEED, CELEBRATE_RELEASE = 9, 6, 2
 CELEBRATE_COOLDOWN_SEC = 2.5   # minimum time between celebrations (the wiggle itself takes ~0.7s)
-LEFT_FIST_SUPPRESS_FRAMES = 6  # shoot is blocked if the left hand was a fist in any of these recent frames
 
 CURL_TIP_TO_MCP_RATIO = 0.55   # fingertip this close to its own knuckle (relative to palm size) = curled
 HAND_STICKY_DIST = 0.15        # one visible hand within this fraction of frame width of a side's last wrist keeps that side
@@ -192,6 +191,18 @@ def is_fist(landmarks):
         return False
     curled = sum(1 for tip, pip, mcp in FINGER_TIPS_PIPS_MCPS if finger_curled(landmarks, tip, pip, mcp))
     return curled >= 3
+
+
+def is_horns(landmarks):
+    """Rock-on / horns sign: index and pinky extended, middle and ring
+    curled (thumb anywhere). With exactly two fingers out it can never also
+    read as an open hand (needs >=3 extended) or a fist (allows <=1)."""
+    return (
+        finger_extended(landmarks, INDEX_TIP, INDEX_PIP)
+        and finger_extended(landmarks, PINKY_TIP, PINKY_PIP)
+        and finger_curled(landmarks, MIDDLE_TIP, MIDDLE_PIP, MIDDLE_MCP)
+        and finger_curled(landmarks, RING_TIP, RING_PIP, RING_MCP)
+    )
 
 
 # ------------------------------------------------------------------
@@ -837,7 +848,7 @@ def render_hud(frame, st, fx, now):
     put_text_centered(frame, f"{label}   [{key}]", w // 2, strip_cy + S(6), cmd_col, 0.52 * s, tk, FONT_BOLD)
 
     # --- legend ----------------------------------------------------------
-    legend = "LEFT: palm=FWD  back=REV   |   RIGHT: tilt=TURN  fist=KICK   |   2 FISTS = CELEBRATE"
+    legend = "LEFT: palm=FWD  back=REV   |   RIGHT: tilt=TURN  fist=KICK   |   ROCK SIGN x2 = CELEBRATE"
     put_text_centered(frame, legend, w // 2, h - S(8), scale_color(COL_CYAN, 0.9), 0.36 * s, tk)
 
     # --- effects on top of everything -----------------------------------
@@ -858,7 +869,6 @@ def main():
     turn_debouncer = GestureDebouncer(TURN_HOLD_FRAMES, default="none")
     shoot_trigger = OneShotTrigger(SHOOT_WINDOW, SHOOT_NEED, SHOOT_RELEASE, SHOOT_COOLDOWN_SEC)
     celebrate_trigger = OneShotTrigger(CELEBRATE_WINDOW, CELEBRATE_NEED, CELEBRATE_RELEASE, CELEBRATE_COOLDOWN_SEC)
-    left_fist_recent = deque(maxlen=LEFT_FIST_SUPPRESS_FRAMES)
     hand_assigner = HandAssigner()
     fx = HudFx()
 
@@ -889,7 +899,7 @@ def main():
     with vision.HandLandmarker.create_from_options(hand_options) as hands:
         print("Left hand:  open palm facing camera = forward, back of hand facing camera = backward")
         print("Right hand: open hand tilt = turn left/right, closed fist = shoot")
-        print("Both hands: two closed fists = celebrate")
+        print("Both hands: rock-on sign (index + pinky up) = celebrate")
         print("Press 'q' to quit.")
 
         while cap.isOpened():
@@ -921,6 +931,8 @@ def main():
             left_hand_seen = False
             fist_now = False
             left_fist_now = False
+            left_horns = False
+            right_horns = False
             left_orientation = None
             turn_tilt = 0.0
 
@@ -931,8 +943,10 @@ def main():
                 left_hand_seen = True
                 raw_drive, left_orientation = classify_drive_gesture(left_landmarks)
                 left_fist_now = is_fist(left_landmarks)
+                left_horns = is_horns(left_landmarks)
                 hand_color = (
                     COL_MAGENTA if left_fist_now else
+                    COL_AMBER if left_horns else
                     COL_GREEN if raw_drive == "forward" else
                     COL_RED if raw_drive == "backward" else
                     COL_INACTIVE
@@ -944,8 +958,10 @@ def main():
                 right_hand_seen = True
                 raw_turn, turn_tilt = classify_turn_gesture(right_landmarks)
                 fist_now = is_fist(right_landmarks)
+                right_horns = is_horns(right_landmarks)
                 hand_color = (
                     COL_MAGENTA if fist_now else
+                    COL_AMBER if right_horns else
                     COL_CYAN if raw_turn in ("turn_left", "turn_right") else
                     COL_INACTIVE
                 )
@@ -953,14 +969,11 @@ def main():
 
             drive_state = drive_debouncer.update(raw_drive if left_hand_seen else "stop")
             turn_state = turn_debouncer.update(raw_turn if right_hand_seen else "none")
-            # Two fists = celebrate. A right fist only counts as "shoot" if the
-            # left hand hasn't been a fist in the last few frames -- otherwise
-            # raising both fists (or a flickering left fist) would kick the
-            # ball before the celebrate vote completes.
-            left_fist_recent.append(left_fist_now)
-            both_fists = left_fist_now and fist_now
-            shot_fired = shoot_trigger.update(fist_now and not any(left_fist_recent), now)
-            celebrate_fired = celebrate_trigger.update(both_fists, now)
+            # Right fist = shoot, whatever the left hand is doing (so stop +
+            # shoot works). Rock-on sign on both hands = celebrate; it can't be
+            # confused with a fist, so the two never clash.
+            shot_fired = shoot_trigger.update(fist_now, now)
+            celebrate_fired = celebrate_trigger.update(left_horns and right_horns, now)
             if shot_fired:
                 fx.trigger_shoot(now)
             if celebrate_fired:
@@ -985,6 +998,8 @@ def main():
             # --- HUD --------------------------------------------------
             if left_fist_now:
                 left_read = "FIST"
+            elif left_horns:
+                left_read = "ROCK"
             elif left_orientation == "palm":
                 left_read = "PALM"
             elif left_orientation == "back":
@@ -993,6 +1008,8 @@ def main():
                 left_read = "HAND"
             if fist_now:
                 right_read = "FIST"
+            elif right_horns:
+                right_read = "ROCK"
             elif raw_turn != "none":
                 right_read = "OPEN"
             else:

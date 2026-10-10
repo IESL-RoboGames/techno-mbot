@@ -23,7 +23,7 @@ left" work naturally.
 | Stop | Left | Anything else (fist, half-open, edge-on, hand out of frame) |
 | Turn left / right | Right | Open hand tilted left / right (discrete — no exact angle needed) |
 | Shoot | Right | Closed fist — one-shot with cooldown |
-| Celebrate | Both | **Two closed fists** held together (~0.3 s) — one-shot with cooldown |
+| Celebrate | Both | **Rock-on sign** (index + pinky up, middle + ring folded) on **both** hands (~0.3 s) — one-shot with cooldown |
 
 Notes:
 - A **fist** is at least 3 of the 4 fingers curled; where the thumb sits
@@ -44,10 +44,9 @@ Notes:
   is currently read as (`L: PALM` / `L: BACK` / `L: FIST` / `L: HAND` / `L: OFF`).
   If forward/backward come out swapped on your setup, flip
   `PALM_FACING_CROSS_SIGN` at the top of `gesture_control.py`.
-- While the left hand is (or was in the last few frames) a fist, the right
-  fist is **not** read as "shoot" (otherwise raising both fists for a
-  celebrate would kick the ball first). To shoot, keep the left hand open or
-  out of frame.
+- Shoot works whatever the left hand is doing, so **stop + shoot** (left fist
+  + right fist) kicks. The rock-on sign can never read as a fist or an open
+  hand, so celebrate doesn't clash with shoot, drive or turn.
 - If a *single* visible hand ends up on the wrong side for your camera, flip
   `SWAP_HANDEDNESS` at the top of `gesture_control.py`.
 
