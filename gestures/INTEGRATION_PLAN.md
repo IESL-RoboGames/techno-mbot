@@ -1,3 +1,5 @@
+> **Historical design notes.** The current gesture set, command table and behavior are documented in [README.md](README.md); where they differ, the README wins.
+
 # Integrating gesture_control.py with the mBot — Plan
 
 ## 1. What already exists (found in `../techno-mbot`)
