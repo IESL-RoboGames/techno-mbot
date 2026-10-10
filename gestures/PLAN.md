@@ -1,3 +1,5 @@
+> **Historical design notes.** The current gesture set, command table and behavior are documented in [README.md](README.md); where they differ, the README wins.
+
 # Gesture Control Redesign — Plan
 
 ## 1. Requirement recap
