@@ -32,7 +32,7 @@ All motion and action commands are transmitted over Bluetooth Serial at **115200
 | `'v'` | Goal celebration wiggle | `celebrate()` | Moved from `'c'` to `'v'` (Victory) |
 | `'k'` | Kick/Shoot (Servo on A0 + Buzzer) | `kick()` | Strike ball with calibrated angle `kickAngle` |
 | `'o'` | Deploy/Open kicker servo | `setServoAngle(kickAngle)` | Helper for kicker testing |
-| `'p'` | Retract/Reset kicker servo (0°) | `resetServo()` | Rest angle |
+| `'p'` | Retract/Reset kicker servo | `resetServo()` | Rest angle (`SERVO_REST_ANGLE`, default 180°) |
 | `' '` | Stop immediately | `stopRobot()` | Both motors to 0, LEDs off |
 | `'+'` | Increase speed cap | `currentSpeedCap += 15` | Global speed limit |
 | `'-'` | Decrease speed cap | `currentSpeedCap -= 15` | Global speed limit |
