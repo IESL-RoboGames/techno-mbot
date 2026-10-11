@@ -311,41 +311,84 @@ void resetServo() {
   setServoAngle(SERVO_REST_ANGLE);
 }
 
-// Full kick sequence: swing forward to strike the ball, then retract
+// =============================================================================
+// ⚽ KICKER FUNCTIONS (STATIONARY & RUNNING KICK)
+// =============================================================================
 unsigned long lastKickTime = 0;
 const unsigned long KICK_COOLDOWN_MS = 500; // Debounce: prevent rapid-fire repeated kicks
 
-void kick() {
+// 1. Stationary Kick: kicks from a stop and remains stopped
+void stationaryKick() {
   if (millis() - lastKickTime < KICK_COOLDOWN_MS) {
-    return; // Ignore if called again too quickly
+    return;
   }
   lastKickTime = millis();
 
-  // Stop DC drive motors first so 100% of battery power goes to the servo
   stopRobot();
-
   setLeds(150, 150, 0); // Yellow indicator while kicking
   buzzer.noTone();
 
-  // 1. High-speed strike to kickAngle (180° -> 90°)
+  // Strike forward 90°
   setServoAngle(kickAngle);
   delay(SERVO_KICK_DELAY_MS);
 
-  // 2. Immediate snap retraction back to rest (90° -> 180°)
+  // Retract to safe rest
   setServoAngle(SERVO_REST_ANGLE);
   delay(SERVO_RETRACT_DELAY_MS);
 
-  // Audio chirp AFTER physical strike is complete (zero power sag during swing)
+  // Audio chirp
   buzzer.tone(1800, 50);
   delay(50);
   buzzer.noTone();
+
+  stopRobot();
   setLeds(0, 0, 0);
 
-  // Clear any extra 'k' commands queued during the kick delay
-  while (Serial.available() > 0) {
+  // Clear extra kick commands from queue
+  while (Serial.available() > 0 && (Serial.peek() == 'k' || Serial.peek() == 'j')) {
     Serial.read();
   }
   lastCommandTime = millis();
+}
+
+// 2. Running Kick: drives forward into the ball WHILE striking, then continues forward!
+void runningKick() {
+  if (millis() - lastKickTime < KICK_COOLDOWN_MS) {
+    return;
+  }
+  lastKickTime = millis();
+
+  // Actively power wheels forward into the ball!
+  moveForward();
+  setLeds(0, 150, 150); // Cyan indicator = Running Kick!
+  buzzer.noTone();
+
+  // Strike forward 90° WHILE wheels are charging forward
+  setServoAngle(kickAngle);
+  delay(SERVO_KICK_DELAY_MS);
+
+  // Retract back to safe rest position
+  setServoAngle(SERVO_REST_ANGLE);
+  delay(SERVO_RETRACT_DELAY_MS);
+
+  // Audio chirp AFTER strike is done (zero power sag during strike)
+  buzzer.tone(2000, 50);
+  delay(50);
+  buzzer.noTone();
+
+  // Continue driving forward smoothly
+  moveForward();
+
+  // Clear extra kick commands from queue
+  while (Serial.available() > 0 && (Serial.peek() == 'k' || Serial.peek() == 'j')) {
+    Serial.read();
+  }
+  lastCommandTime = millis();
+}
+
+// Backward compatibility alias
+void kick() {
+  stationaryKick();
 }
 
 // =============================================================================
@@ -523,7 +566,10 @@ void handleCommand(char c) {
   case 'k':
   case 'X': // Standard RC action / button
   case 'V': // Standard RC horn button
-    kick();
+    stationaryKick();
+    break;
+  case 'j': // Running Kick (Charges forward + Kicks)
+    runningKick();
     break;
   case 'o':
     // Calibration helper: open/deploy kicker
