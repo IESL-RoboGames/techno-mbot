@@ -30,9 +30,10 @@ All motion and action commands are transmitted over Bluetooth Serial at **115200
 | `'c'` | **Arc backward-right** *(New)* | `curveBackRight()` | Arcs reverse to right (right inner, left outer) |
 | `'x'` | 180° turnaround spin | `rotate180()` | Duration calibrated via `rotate180Ms` |
 | `'v'` | Goal celebration wiggle | `celebrate()` | Moved from `'c'` to `'v'` (Victory) |
-| `'k'` | Kick/Shoot (Servo on A0 + Buzzer) | `kick()` | Strike ball with calibrated angle `kickAngle` |
+| `'k'` | Stationary Kick (Servo on A0 + Buzzer) | `stationaryKick()` | Strike ball from a stop with angle `kickAngle` |
+| `'j'` | **Running Kick** *(New)* | `runningKick()` | **Charges forward while striking ball** (W + K combo) |
 | `'o'` | Deploy/Open kicker servo | `setServoAngle(kickAngle)` | Helper for kicker testing |
-| `'p'` | Retract/Reset kicker servo (0°) | `resetServo()` | Rest angle |
+| `'p'` | Retract/Reset kicker servo | `resetServo()` | Rest angle (`SERVO_REST_ANGLE`, default 180°) |
 | `' '` | Stop immediately | `stopRobot()` | Both motors to 0, LEDs off |
 | `'+'` | Increase speed cap | `currentSpeedCap += 15` | Global speed limit |
 | `'-'` | Decrease speed cap | `currentSpeedCap -= 15` | Global speed limit |

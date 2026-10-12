@@ -102,9 +102,10 @@ class RobotBridge:
                 return
 
         if shoot:
-            if not self.bot.send_raw("k"):
+            kick_cmd = "j" if drive == "forward" else "k"
+            if not self.bot.send_raw(kick_cmd):
                 self._handle_failure()
-            self._last_sent_char = None  # kick ends with the robot stopped; force a fresh send
+            self._last_sent_char = None  # kick ends; force a fresh send
 
     def _handle_failure(self):
         try:

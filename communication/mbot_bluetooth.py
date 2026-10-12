@@ -214,8 +214,12 @@ class MBotBluetooth:
         return self.send_raw('v')
 
     def kick(self):
-        """Triggers kicker servo strike on pin A0."""
+        """Triggers stationary kicker servo strike (sends 'k')."""
         return self.send_raw('k')
+
+    def running_kick(self):
+        """Triggers running kick: charges forward while striking (sends 'j')."""
+        return self.send_raw('j')
 
     def stop(self):
         """Stops both motors."""

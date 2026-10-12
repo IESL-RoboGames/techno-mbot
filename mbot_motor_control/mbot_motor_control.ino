@@ -16,9 +16,13 @@ MeBuzzer buzzer;
 #include <utility/Servo.h>
 Servo kickerServo;
 const int SERVO_PIN = 9;
-const int SERVO_REST_ANGLE = 0;      // Rest / retracted position (degrees)
-int kickAngle = 90;                  // Kick / extended strike position (degrees) - calibratable!
-const int SERVO_KICK_DELAY_MS = 250; // Milliseconds to hold extended position during kick
+// --- STRICT 90° KICKER SAFETY BOUNDS ---
+const int SERVO_REST_ANGLE       = 180; // Safe retracted starting position (degrees)
+int kickAngle                    = 90;  // Front-most forward strike position (degrees)
+const int SERVO_MIN_LIMIT        = 90;  // Strict front boundary: cannot rotate below 90°
+const int SERVO_MAX_LIMIT        = 180; // Strict back boundary: cannot rotate above 180°
+const int SERVO_KICK_DELAY_MS    = 150; // Optimal 90° strike transit time (ms) at maximum speed
+const int SERVO_RETRACT_DELAY_MS = 160; // Retract time (ms) back to safe rest position
 
 // =============================================================================
 // ⚙️ SPEED & POWER CONFIGURATION INTERFACE (CALIBRATABLE AT RUNTIME)
@@ -101,7 +105,7 @@ void loadConfigFromEEPROM() {
     curveInnerRatio = constrain(cfg.curveInnerRatio, 10, 95);
     motorTrim       = constrain(cfg.motorTrim, -50, 50);
     rotate180Ms     = constrain(cfg.rotate180Ms, 100, 3000);
-    kickAngle       = constrain(cfg.kickAngle, 20, 180);
+    kickAngle       = constrain(cfg.kickAngle, SERVO_MIN_LIMIT, SERVO_MAX_LIMIT);
     currentSpeedCap = constrain(cfg.speedCap, 30, 255);
     Serial.println(F("[EEPROM] Restored saved calibration parameters."));
   } else {
@@ -299,37 +303,92 @@ void celebrate() {
 
 // SERVO / KICKER FUNCTIONS
 void setServoAngle(int angle) {
-  kickerServo.write(constrain(angle, 0, 180));
+  // Clamped strictly to the 90° safety interval [90°, 180°]
+  kickerServo.write(constrain(angle, SERVO_MIN_LIMIT, SERVO_MAX_LIMIT));
 }
 
 void resetServo() {
   setServoAngle(SERVO_REST_ANGLE);
 }
 
-// Full kick sequence: swing forward to strike the ball, then retract
+// =============================================================================
+// ⚽ KICKER FUNCTIONS (STATIONARY & RUNNING KICK)
+// =============================================================================
 unsigned long lastKickTime = 0;
 const unsigned long KICK_COOLDOWN_MS = 500; // Debounce: prevent rapid-fire repeated kicks
 
-void kick() {
+// 1. Stationary Kick: kicks from a stop and remains stopped
+void stationaryKick() {
   if (millis() - lastKickTime < KICK_COOLDOWN_MS) {
-    return; // Ignore if called again too quickly
+    return;
   }
   lastKickTime = millis();
 
+  stopRobot();
   setLeds(150, 150, 0); // Yellow indicator while kicking
-  buzzer.tone(1500, 150);
+  buzzer.noTone();
+
+  // Strike forward 90°
   setServoAngle(kickAngle);
   delay(SERVO_KICK_DELAY_MS);
-  setServoAngle(SERVO_REST_ANGLE);
-  delay(150); // Give time for servo arm to retract
-  buzzer.noTone();
-  stopRobot();
 
-  // Clear any extra 'k' commands queued during the kick delay
-  while (Serial.available() > 0) {
+  // Retract to safe rest
+  setServoAngle(SERVO_REST_ANGLE);
+  delay(SERVO_RETRACT_DELAY_MS);
+
+  // Audio chirp
+  buzzer.tone(1800, 50);
+  delay(50);
+  buzzer.noTone();
+
+  stopRobot();
+  setLeds(0, 0, 0);
+
+  // Clear extra kick commands from queue
+  while (Serial.available() > 0 && (Serial.peek() == 'k' || Serial.peek() == 'j')) {
     Serial.read();
   }
   lastCommandTime = millis();
+}
+
+// 2. Running Kick: drives forward into the ball WHILE striking, then continues forward!
+void runningKick() {
+  if (millis() - lastKickTime < KICK_COOLDOWN_MS) {
+    return;
+  }
+  lastKickTime = millis();
+
+  // Actively power wheels forward into the ball!
+  moveForward();
+  setLeds(0, 150, 150); // Cyan indicator = Running Kick!
+  buzzer.noTone();
+
+  // Strike forward 90° WHILE wheels are charging forward
+  setServoAngle(kickAngle);
+  delay(SERVO_KICK_DELAY_MS);
+
+  // Retract back to safe rest position
+  setServoAngle(SERVO_REST_ANGLE);
+  delay(SERVO_RETRACT_DELAY_MS);
+
+  // Audio chirp AFTER strike is done (zero power sag during strike)
+  buzzer.tone(2000, 50);
+  delay(50);
+  buzzer.noTone();
+
+  // Continue driving forward smoothly
+  moveForward();
+
+  // Clear extra kick commands from queue
+  while (Serial.available() > 0 && (Serial.peek() == 'k' || Serial.peek() == 'j')) {
+    Serial.read();
+  }
+  lastCommandTime = millis();
+}
+
+// Backward compatibility alias
+void kick() {
+  stationaryKick();
 }
 
 // =============================================================================
@@ -399,7 +458,7 @@ void processCalibrationCommand(const char* cmd) {
       case 'O': curveSpeed = constrain(val, 30, 255); break;
       case 'T': motorTrim = constrain(val, -50, 50); break;
       case 'X': rotate180Ms = constrain(val, 100, 3000); break;
-      case 'K': kickAngle = constrain(val, 20, 180); break;
+      case 'K': kickAngle = constrain(val, SERVO_MIN_LIMIT, SERVO_MAX_LIMIT); break;
       case 'C': currentSpeedCap = constrain(val, 30, 255); break;
       default: return;
     }
@@ -443,7 +502,7 @@ void processCalibrationCommand(const char* cmd) {
         Serial.print(F("[CAL] 180 Spin Time: ")); Serial.print(rotate180Ms); Serial.println(F(" ms"));
         break;
       case 'K':
-        kickAngle = constrain(kickAngle + (isPlus ? 5 : -5), 20, 180);
+        kickAngle = constrain(kickAngle + (isPlus ? 5 : -5), SERVO_MIN_LIMIT, SERVO_MAX_LIMIT);
         Serial.print(F("[CAL] Kick Angle: ")); Serial.println(kickAngle);
         break;
       case 'C':
@@ -507,7 +566,10 @@ void handleCommand(char c) {
   case 'k':
   case 'X': // Standard RC action / button
   case 'V': // Standard RC horn button
-    kick();
+    stationaryKick();
+    break;
+  case 'j': // Running Kick (Charges forward + Kicks)
+    runningKick();
     break;
   case 'o':
     // Calibration helper: open/deploy kicker
@@ -550,12 +612,12 @@ void setup() {
   delay(200);
   buzzer.noTone();
   
-  // Initialize Kicker Servo on Pin A0
-  kickerServo.attach(SERVO_PIN);
-  resetServo();
-
   // Load persistent calibration from EEPROM if available
   loadConfigFromEEPROM();
+
+  // Initialize Kicker Servo on Pin A0 at rest position (180°)
+  kickerServo.attach(SERVO_PIN);
+  resetServo();
 
   Serial.println(F("mBot motor & servo control ready."));
   Serial.println(F("w/s/a/d = move, q/e = arc fwd, z/c = arc back, x = turn around, space = stop"));

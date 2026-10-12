@@ -95,10 +95,12 @@ def main():
     print("  z / c       : Arc Backward-Left / Backward-Right (or hold S+A / S+D) [NEW]")
     print("  [space]     : Stop immediately")
     print("\n⚡ Action & Skill Controls:")
-    print("  k           : Kick / Strike ball (Servo on A0 + Buzzer)")
+    print("  k           : Stationary Kick (Strike from a stop)")
+    print("  W + k       : Running Kick (Charge forward + Strike ball) [NEW]")
+    print("  j           : Direct Running Kick ('j')")
     print("  v           : Victory celebration wiggle (Rainbow LEDs)")
     print("  x           : 180° Turnaround spin")
-    print("  o / p       : Servo Test (o = Deploy 90°, p = Retract 0°)")
+    print("  o / p       : Servo Test (o = Deploy 90°, p = Retract 180°)")
     print("  + / -       : Master Speed Cap (+/- 15)")
     print("\n🎛️ Live Calibration Controls (Tune parameters without re-uploading):")
     print("  Ctrl + [+] + Key  (or Ctrl + Key) : Increase parameter")
@@ -206,14 +208,53 @@ def main():
             # -----------------------------------------------------------------
             # 2. NORMAL DRIVING & ACTION HANDLING (no Ctrl / Alt pressed)
             # -----------------------------------------------------------------
-            new_action = ' '
-
-            # Check dual-key combos first for natural steering
             is_w = keyboard.is_pressed('w')
             is_s = keyboard.is_pressed('s')
             is_a = keyboard.is_pressed('a')
             is_d = keyboard.is_pressed('d')
+            is_k = keyboard.is_pressed('k')
 
+            # 2A. Kick Triggering (One-shot debounce: exactly 1 kick per keypress)
+            # While holding W, tapping K sends 'j' (Running Kick)!
+            # Pressing K alone sends 'k' (Stationary Kick)!
+            if is_k:
+                if 'kick' not in held_one_shots:
+                    held_one_shots.add('kick')
+                    if is_w:
+                        bot.send_raw('j')
+                        print("\n-> ⚡ RUNNING KICK! (Charging forward + Striking ball)")
+                    else:
+                        bot.send_raw('k')
+                        print("\n-> ⚡ STATIONARY KICK!")
+            else:
+                held_one_shots.discard('kick')
+
+            # Dedicated direct running kick key ('j')
+            if keyboard.is_pressed('j'):
+                if 'j' not in held_one_shots:
+                    held_one_shots.add('j')
+                    bot.send_raw('j')
+                    print("\n-> ⚡ RUNNING KICK ('j')!")
+            else:
+                held_one_shots.discard('j')
+
+            # Other one-shot actions (v, x, o, p, +, -)
+            for other_action in ('v', 'x', 'o', 'p', '+', '-'):
+                if keyboard.is_pressed(other_action):
+                    if other_action not in held_one_shots:
+                        held_one_shots.add(other_action)
+                        bot.send_raw(other_action)
+                        if other_action == 'v':
+                            print("\n-> 🎉 CELEBRATION WIGGLE!")
+                        elif other_action == 'x':
+                            print("\n-> 🔄 180° SPIN!")
+                        else:
+                            print(f"\n-> Action: '{other_action}'")
+                else:
+                    held_one_shots.discard(other_action)
+
+            # 2B. Continuous Driving Resolution
+            new_action = ' '
             if is_w and is_a:
                 new_action = 'q'  # Arc Forward-Left
             elif is_w and is_d:
@@ -231,47 +272,23 @@ def main():
             elif is_d:
                 new_action = 'd'  # Spin Right
             elif keyboard.is_pressed('q'):
-                new_action = 'q'  # Dedicated Curve Left
+                new_action = 'q'
             elif keyboard.is_pressed('e'):
-                new_action = 'e'  # Dedicated Curve Right
+                new_action = 'e'
             elif keyboard.is_pressed('z'):
-                new_action = 'z'  # Dedicated Curve Back-Left
+                new_action = 'z'
             elif keyboard.is_pressed('c'):
-                new_action = 'c'  # Dedicated Curve Back-Right
-            elif keyboard.is_pressed('x'):
-                new_action = 'x'  # 180° Spin
-            elif keyboard.is_pressed('v'):
-                new_action = 'v'  # Celebrate Wiggle
-            elif keyboard.is_pressed('k'):
-                new_action = 'k'  # Kick
-            elif keyboard.is_pressed('o'):
-                new_action = 'o'  # Deploy servo
-            elif keyboard.is_pressed('p'):
-                new_action = 'p'  # Reset servo
-            elif is_plus:
-                new_action = '+'
-            elif is_minus:
-                new_action = '-'
+                new_action = 'c'
 
-            # Release any one-shot keys that are no longer pressed
-            for action in list(held_one_shots):
-                if not keyboard.is_pressed(action):
-                    held_one_shots.remove(action)
-
-            # Continuous motion commands
+            # Continuous motion updates
             if new_action in CONTINUOUS_ACTIONS:
-                bot.send_raw(new_action)
                 if current_action != new_action:
-                    print(f"-> Started: '{new_action}'")
-                current_action = new_action
-
-            # One-shot commands (fire once per keypress)
-            elif new_action in ONE_SHOT_ACTIONS:
-                if new_action not in held_one_shots:
-                    held_one_shots.add(new_action)
                     bot.send_raw(new_action)
-                    print(f"-> Started: '{new_action}'")
-
+                    print(f"-> Driving: '{new_action}'")
+                    current_action = new_action
+                elif 'kick' in held_one_shots and is_w:
+                    # When running kick was just fired while holding W, ensure forward driving continues
+                    bot.send_raw('w')
             else:
                 # Key released (new_action == ' ')
                 if current_action in CONTINUOUS_ACTIONS:
