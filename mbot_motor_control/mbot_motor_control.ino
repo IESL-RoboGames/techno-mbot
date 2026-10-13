@@ -288,17 +288,61 @@ void rotate180() {
   stopRobot();
 }
 
-// Extra "special functionality": quick side-to-side wiggle, e.g. after a goal
-void celebrate() {
-  for (int i = 0; i < 2; i++) {
-    setMotorSpeeds(-celebrateSpeed, celebrateSpeed);
-    setLeds(150, 0, 0);
-    delay(150);
-    setMotorSpeeds(celebrateSpeed, -celebrateSpeed);
-    setLeds(0, 150, 0);
-    delay(150);
+// =============================================================================
+// 🎉 CELEBRATION DANCE & MUSIC (GOAL VICTORY FANFARE)
+// =============================================================================
+// Musical note frequencies (Hz) for victory fanfare
+const uint16_t NOTE_C5 = 523;
+const uint16_t NOTE_E5 = 659;
+const uint16_t NOTE_G5 = 784;
+const uint16_t NOTE_C6 = 1047;
+
+// Helper: executes one side-to-side turn step with synchronized buzzer tone and LED color
+void celebrateStep(int dir, uint16_t noteFreq, uint16_t noteDuration, uint8_t r, uint8_t g, uint8_t b) {
+  // dir: -1 = pivot left, +1 = pivot right, 0 = stationary
+  int left = 0;
+  int right = 0;
+  if (dir < 0) {
+    left = -celebrateSpeed;
+    right = celebrateSpeed;
+  } else if (dir > 0) {
+    left = celebrateSpeed;
+    right = -celebrateSpeed;
   }
+  currentLeftSpeed = left;
+  currentRightSpeed = right;
+  leftMotor.run(-currentLeftSpeed);
+  rightMotor.run(currentRightSpeed);
+
+  setLeds(r, g, b);
+
+  if (noteFreq > 0) {
+    buzzer.tone(noteFreq, noteDuration);
+  } else {
+    delay(noteDuration);
+  }
+  buzzer.noTone();
+  delay(15); // Brief articulation gap between notes
+}
+
+// Victory celebration: turns side-to-side with celebration music on the buzzer
+void celebrate() {
+  // Upbeat 6-step victory fanfare synchronized with side-to-side turns and festive LEDs
+  celebrateStep(-1, NOTE_C5, 120, 150, 0, 150); // Turn Left  | C5 | Magenta
+  celebrateStep( 1, NOTE_E5, 120, 0, 150, 150); // Turn Right | E5 | Cyan
+  celebrateStep(-1, NOTE_G5, 120, 150, 150, 0); // Turn Left  | G5 | Yellow
+  celebrateStep( 1, NOTE_C6, 200, 0, 150, 0);   // Turn Right | C6 | Green
+  celebrateStep(-1, NOTE_G5, 120, 0, 0, 150);   // Turn Left  | G5 | Blue
+  celebrateStep( 1, NOTE_C6, 350, 150, 100, 0); // Turn Right | C6 (Triumphant finish!) | Gold
+
+  buzzer.noTone();
   stopRobot();
+  lastCommandTime = millis();
+}
+
+// Celebration alias
+void celebration() {
+  celebrate();
 }
 
 // SERVO / KICKER FUNCTIONS
@@ -359,8 +403,12 @@ void runningKick() {
   lastKickTime = millis();
 
   // Actively power wheels forward into the ball!
-  moveForward();
-  setLeds(0, 150, 150); // Cyan indicator = Running Kick!
+  // CRITICAL POWER OPTIMIZATION: LEDs are strictly turned OFF when kicking while going forward.
+  // Driving DC motors and striking the kicker servo simultaneously draws peak current.
+  // Turning off LEDs eliminates power sag and prevents microcontroller brownout on low battery.
+  int spd = getForwardSpeed();
+  setMotorSpeeds(spd, spd);
+  setLeds(0, 0, 0); // No light when kicking forward
   buzzer.noTone();
 
   // Strike forward 90° WHILE wheels are charging forward
@@ -376,8 +424,9 @@ void runningKick() {
   delay(50);
   buzzer.noTone();
 
-  // Continue driving forward smoothly
-  moveForward();
+  // Continue driving forward smoothly without lights
+  setMotorSpeeds(spd, spd);
+  setLeds(0, 0, 0);
 
   // Clear extra kick commands from queue
   while (Serial.available() > 0 && (Serial.peek() == 'k' || Serial.peek() == 'j')) {
