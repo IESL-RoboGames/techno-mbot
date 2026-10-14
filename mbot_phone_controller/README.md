@@ -45,12 +45,28 @@ Run the script inside this folder:
 ```powershell
 python c:\Users\sayur\Documents\GitHub\techno-mbot\mbot_phone_controller\calibrate_mbot.py
 ```
-- Press **W / S / A / D** to test drive.
-- Press **Space** to stop.
-- Press **T** or **Shift+T** to adjust steering trim (balance left/right so it drives straight).
-- Press **F** or **Shift+F** to increase/decrease forward speed.
-- Press **Shift+S** to save to EEPROM!
-- Press **?** to see current parameters.
+- **Hold key to test drive, release to stop**:
+  - `W` / `S` : Forward (`'F'`) / Backward (`'B'`)
+  - `A` / `D` : Spin Left (`'L'`) / Spin Right (`'R'`)
+  - `Q` / `E` : Arc Forward-Left (`'G'`) / Forward-Right (`'H'`)
+  - `Z` / `C` : Arc Backward-Left (`'I'`) / Backward-Right (`'J'`)
+  - `K` / `Y` : Smart Kick (`'Y'`) | `W + K` or `J` : Running Kick (`'j'`)
+  - `V` : Goal Celebration Fanfare (`'Z'`)
+  - `Space` : Stop immediately (`'S'`)
+- **Live Calibration (Unified with comm_test_tool)**:
+  - Hold `Ctrl + Key` (or `Ctrl + [+]`): **Increase** parameter
+  - Hold `Alt + Key` (or `Ctrl + [-]`): **Decrease** parameter
+    - `'w'` : Forward Speed &nbsp;&nbsp;|&nbsp;&nbsp; `'s'` : Backward Speed
+    - `'a'` / `'d'` : Turn Speed
+    - `'q'` / `'e'` : Curve Inner Ratio (%)
+    - `'o'` : Curve Outer Speed
+    - `'t'` : Motor Trim (Steering Balance)
+    - `'x'` : 180° Spin Time (ms)
+    - `'k'` : Kick Strike Angle (deg)
+  - `Ctrl + Enter` : Save calibration permanently to EEPROM (`#SAVE`)
+  - `Ctrl + Backspace` : Reset to factory defaults (`#RESET`)
+  - `Tab` or `?` : Query calibration status table (`#?`)
+  - `Esc` : Quit and disconnect cleanly
 
 ---
 
