@@ -29,9 +29,9 @@ All motion and action commands are transmitted over Bluetooth Serial at **115200
 | `'z'` | **Arc backward-left** *(New)* | `curveBackLeft()` | Arcs reverse to left (left inner, right outer) |
 | `'c'` | **Arc backward-right** *(New)* | `curveBackRight()` | Arcs reverse to right (right inner, left outer) |
 | `'x'` | 180° turnaround spin | `rotate180()` | Duration calibrated via `rotate180Ms` |
-| `'v'` | Goal celebration wiggle | `celebrate()` | Moved from `'c'` to `'v'` (Victory) |
+| `'v'` | Goal celebration fanfare | `celebrate()` | Side-to-side turns with buzzer music & festive LEDs |
 | `'k'` | Stationary Kick (Servo on A0 + Buzzer) | `stationaryKick()` | Strike ball from a stop with angle `kickAngle` |
-| `'j'` | **Running Kick** *(New)* | `runningKick()` | **Charges forward while striking ball** (W + K combo) |
+| `'j'` | **Running Kick** *(Optimized)* | `runningKick()` | **Charges forward while striking** (LEDs OFF to save current) |
 | `'o'` | Deploy/Open kicker servo | `setServoAngle(kickAngle)` | Helper for kicker testing |
 | `'p'` | Retract/Reset kicker servo | `resetServo()` | Rest angle (`SERVO_REST_ANGLE`, default 180°) |
 | `' '` | Stop immediately | `stopRobot()` | Both motors to 0, LEDs off |
@@ -175,7 +175,7 @@ The Arduino firmware accepts both custom keys and standard RC car protocol chara
 | **Curve Backward-Left** | `'z'` | `'H'` | Arc backward-left |
 | **Curve Backward-Right** | `'c'` | `'J'` | Arc backward-right |
 | **Kick / Shoot** | `'k'` | `'X'` / `'V'` *(Horn)* | Strike kicker servo on A0 |
-| **Celebrate** | `'v'` | `'C'` | Victory celebration wiggle |
+| **Celebrate** | `'v'` | `'C'` | Side-to-side turns with buzzer music |
 | **Stop / Brake** | `' '` *(Space)* | `'S'` / `'D'` | Stop motors |
 | **Speed + / -** | `'+'` / `'-'` | — | Adjust speed cap |
 
