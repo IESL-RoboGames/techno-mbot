@@ -17,9 +17,11 @@ MeBuzzer buzzer;
 Servo kickerServo;
 const int SERVO_PIN = 9;
 // --- STRICT 90° KICKER SAFETY BOUNDS ---
-const int SERVO_REST_ANGLE       = 180; // Safe retracted starting position (degrees)
-int kickAngle                    = 90;  // Front-most forward strike position (degrees)
-const int SERVO_MIN_LIMIT        = 90;  // Strict front boundary: cannot rotate below 90°
+const int SERVO_REST_ANGLE       = 115; // Safe retracted starting position (degrees)
+const int SERVO_BACK_ANGLE       = 180; // Safe retracted starting position (degrees)
+
+int kickAngle                    = 0;  // Front-most forward strike position (degrees)
+const int SERVO_MIN_LIMIT        = 0;  // Strict front boundary: cannot rotate below 90°
 const int SERVO_MAX_LIMIT        = 180; // Strict back boundary: cannot rotate above 180°
 const int SERVO_KICK_DELAY_MS    = 150; // Optimal 90° strike transit time (ms) at maximum speed
 const int SERVO_RETRACT_DELAY_MS = 160; // Retract time (ms) back to safe rest position
@@ -114,16 +116,16 @@ void loadConfigFromEEPROM() {
 }
 
 void resetConfigToDefaults() {
-  forwardSpeed    = 150;
-  backwardSpeed   = 130;
-  turnSpeed       = 98;
-  curveSpeed      = 150;
+  forwardSpeed    = 155;
+  backwardSpeed   = 160;
+  turnSpeed       = 113;
+  curveSpeed      = 225;
   curveInnerRatio = 50;
   motorTrim       = 0;
   rotate180Ms     = 650;
-  kickAngle       = 90;
+  kickAngle       = 15;
   currentSpeedCap = 255;
-  saveConfigToEEPROM();
+  saveConfigToEEPROM(); 
 }
 
 // =============================================================================
@@ -372,9 +374,13 @@ void stationaryKick() {
   setLeds(150, 150, 0); // Yellow indicator while kicking
   buzzer.noTone();
 
+
+  setServoAngle(SERVO_BACK_ANGLE);
+  delay(SERVO_KICK_DELAY_MS);
+
   // Strike forward 90°
   setServoAngle(kickAngle);
-  delay(SERVO_KICK_DELAY_MS);
+  delay(SERVO_KICK_DELAY_MS*2);
 
   // Retract to safe rest
   setServoAngle(SERVO_REST_ANGLE);
@@ -410,10 +416,12 @@ void runningKick() {
   setMotorSpeeds(spd, spd);
   setLeds(0, 0, 0); // No light when kicking forward
   buzzer.noTone();
-
+    
+    setServoAngle(SERVO_BACK_ANGLE);
+    delay(SERVO_KICK_DELAY_MS);
   // Strike forward 90° WHILE wheels are charging forward
   setServoAngle(kickAngle);
-  delay(SERVO_KICK_DELAY_MS);
+  delay(SERVO_KICK_DELAY_MS*2);
 
   // Retract back to safe rest position
   setServoAngle(SERVO_REST_ANGLE);
