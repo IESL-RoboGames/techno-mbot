@@ -275,9 +275,12 @@ pip install pyserial keyboard opencv-python mediapipe numpy
 ### Mode A: Running AI Gesture Control
 Control the robot hands-free via your laptop webcam:
 
-```powershell
-python gestures/gesture_control.py
-```
+- **Quick Launch (Windows)**: Double-click [`run_gestures.bat`](file:///c:/Users/sayur/Documents/GitHub/techno-mbot/run_gestures.bat) (auto-creates venv, installs dependencies & launches).
+- **Quick Launch (Linux / macOS)**: `./run_gestures.sh`
+- **Manual Launch**:
+  ```powershell
+  python gestures/gesture_control.py
+  ```
 
 - The script auto-downloads `hand_landmarker.task` (~8MB) on first run if missing.
 - It automatically searches for your paired mBot and connects.
@@ -293,11 +296,14 @@ python gestures/gesture_control.py
 Drive the robot using precision keyboard controls:
 
 > [!IMPORTANT]
-> Run your terminal as **Administrator** on Windows so the `keyboard` module can capture system-wide keystrokes.
+> Run as **Administrator** on Windows so the `keyboard` module can capture system-wide keystrokes.
 
-```powershell
-python communication/comm_test_tool.py
-```
+- **Quick Launch (Windows)**: Right-click [`run_comm_test.bat`](file:///c:/Users/sayur/Documents/GitHub/techno-mbot/run_comm_test.bat) $\rightarrow$ **Run as administrator** (auto-creates venv, installs dependencies & launches).
+- **Quick Launch (Linux / macOS)**: `sudo ./run_comm_test.sh`
+- **Manual Launch**:
+  ```powershell
+  python communication/comm_test_tool.py
+  ```
 
 1. Select your mBot COM port from the auto-detected list (press `Enter` for recommended port).
 2. Drive using **Hold-to-Move**:
