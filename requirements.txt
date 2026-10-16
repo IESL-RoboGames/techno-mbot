@@ -1,0 +1,17 @@
+# mBot Robot Football - Python Dependencies
+# Compatible with Python 3.9 - 3.11
+
+# Serial communication with Makeblock mBot over Bluetooth SPP virtual COM port
+pyserial>=3.5
+
+# Low-level keyboard teleoperation & multi-key chord detection (requires Admin privileges on Windows)
+keyboard>=0.13.5
+
+# Computer vision and interactive Neon HUD rendering
+opencv-python>=4.8.0
+
+# Google MediaPipe HandLandmarker for touchless gesture tracking
+mediapipe>=0.10.0
+
+# Vector mathematics and array manipulation
+numpy>=1.24.0
