@@ -257,16 +257,29 @@ Send these commands from a serial terminal or Python script:
 
 ### Step 3: Setup Python Environment
 
-Open PowerShell or Command Prompt in the repository root:
+You can use the one-click setup scripts or configure manually:
 
-```powershell
-# Create a virtual environment (optional but recommended)
-python -m venv venv
-.\venv\Scripts\activate
+#### Automated Setup:
+- **Windows**: Double-click [`setup.bat`](file:///c:/Users/sayur/Documents/GitHub/techno-mbot/setup.bat)
+- **macOS / Linux**: Run [`setup_mac_linux.sh`](file:///c:/Users/sayur/Documents/GitHub/techno-mbot/setup_mac_linux.sh):
+  ```bash
+  chmod +x setup_mac_linux.sh
+  ./setup_mac_linux.sh
+  ```
 
-# Install all required dependencies
-pip install pyserial keyboard opencv-python mediapipe numpy
-```
+#### Manual Setup:
+- **Windows (PowerShell)**:
+  ```powershell
+  python -m venv venv
+  .\venv\Scripts\activate
+  pip install -r requirements.txt
+  ```
+- **macOS / Linux (Bash/Zsh)**:
+  ```bash
+  python3 -m venv venv
+  source venv/bin/activate
+  pip install -r requirements.txt
+  ```
 
 ---
 
@@ -275,9 +288,16 @@ pip install pyserial keyboard opencv-python mediapipe numpy
 ### Mode A: Running AI Gesture Control
 Control the robot hands-free via your laptop webcam:
 
-```powershell
-python gestures/gesture_control.py
-```
+- **Windows**: Double-click [`run_gestures_windows.bat`](file:///c:/Users/sayur/Documents/GitHub/techno-mbot/run_gestures_windows.bat) *(auto-creates venv, installs dependencies & launches)*
+- **macOS / Linux**: Run [`run_gestures_mac_linux.sh`](file:///c:/Users/sayur/Documents/GitHub/techno-mbot/run_gestures_mac_linux.sh):
+  ```bash
+  chmod +x run_gestures_mac_linux.sh
+  ./run_gestures_mac_linux.sh
+  ```
+- **Manual Launch**:
+  ```powershell
+  python gestures/gesture_control.py
+  ```
 
 - The script auto-downloads `hand_landmarker.task` (~8MB) on first run if missing.
 - It automatically searches for your paired mBot and connects.
@@ -293,11 +313,18 @@ python gestures/gesture_control.py
 Drive the robot using precision keyboard controls:
 
 > [!IMPORTANT]
-> Run your terminal as **Administrator** on Windows so the `keyboard` module can capture system-wide keystrokes.
+> Run as **Administrator** on Windows (or with `sudo` on Linux) so the `keyboard` module can capture system-wide keystrokes.
 
-```powershell
-python communication/comm_test_tool.py
-```
+- **Windows**: Right-click [`run_comm_test_windows.bat`](file:///c:/Users/sayur/Documents/GitHub/techno-mbot/run_comm_test_windows.bat) $\rightarrow$ **Run as administrator**
+- **macOS / Linux**: Run [`run_comm_test_mac_linux.sh`](file:///c:/Users/sayur/Documents/GitHub/techno-mbot/run_comm_test_mac_linux.sh):
+  ```bash
+  chmod +x run_comm_test_mac_linux.sh
+  sudo ./run_comm_test_mac_linux.sh
+  ```
+- **Manual Launch**:
+  ```powershell
+  python communication/comm_test_tool.py
+  ```
 
 1. Select your mBot COM port from the auto-detected list (press `Enter` for recommended port).
 2. Drive using **Hold-to-Move**:
