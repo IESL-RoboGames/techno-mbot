@@ -257,16 +257,29 @@ Send these commands from a serial terminal or Python script:
 
 ### Step 3: Setup Python Environment
 
-Open PowerShell or Command Prompt in the repository root:
+You can use the automated setup scripts or configure manually:
 
-```powershell
-# Create a virtual environment (optional but recommended)
-python -m venv venv
-.\venv\Scripts\activate
+#### Automated Setup:
+- **Windows**: Double-click [`setup.bat`](file:///c:/Users/sayur/Documents/GitHub/techno-mbot/setup.bat) or run `.\setup.bat` in CMD / PowerShell.
+- **Linux / macOS**: Run [`setup.sh`](file:///c:/Users/sayur/Documents/GitHub/techno-mbot/setup.sh):
+  ```bash
+  chmod +x setup.sh
+  ./setup.sh
+  ```
 
-# Install all required dependencies
-pip install pyserial keyboard opencv-python mediapipe numpy
-```
+#### Manual Setup:
+- **Windows (PowerShell)**:
+  ```powershell
+  python -m venv venv
+  .\venv\Scripts\activate
+  pip install -r requirements.txt
+  ```
+- **Linux / macOS (Bash/Zsh)**:
+  ```bash
+  python3 -m venv venv
+  source venv/bin/activate
+  pip install -r requirements.txt
+  ```
 
 ---
 

@@ -53,8 +53,10 @@ def main():
             chosen_port = default_port
         elif selection.isdigit() and 1 <= int(selection) <= len(ports):
             chosen_port = ports[int(selection) - 1][0]
-        elif selection.upper().startswith("COM"):
-            chosen_port = selection.upper()
+        elif selection.upper().startswith("COM") or selection.startswith("/dev/"):
+            chosen_port = selection
+        elif any(p[0] == selection for p in ports):
+            chosen_port = selection
         else:
             print("Invalid selection.")
             return
